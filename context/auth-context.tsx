@@ -1,0 +1,183 @@
+'use client'
+
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+  GoogleAuthProvider,
+  signInWithPopup,
+  updateProfile,
+} from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+
+export interface User {
+  uid: string
+  email: string | null
+  displayName: string | null
+  photoURL: string | null
+}
+
+interface AuthContextType {
+  user: User | null
+  firebaseUser: FirebaseUser | null
+  isLoading: boolean
+  idToken: string | null
+  login: (email: string, password: string) => Promise<void>
+  signup: (email: string, password: string, displayName?: string) => Promise<void>
+  loginWithGoogle: () => Promise<void>
+  logout: () => Promise<void>
+  isAuthenticated: boolean
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [idToken, setIdToken] = useState<string | null>(null)
+
+  const syncSession = async (token: string) => {
+    await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+
+    await fetch('/api/auth/init', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  }
+
+  // Monitor auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      try {
+        if (firebaseUser) {
+          // User is signed in
+          setFirebaseUser(firebaseUser)
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+          })
+
+          // Get ID token for API calls and initialize server session
+          const token = await firebaseUser.getIdToken()
+          setIdToken(token)
+          await syncSession(token)
+        } else {
+          // User is signed out
+          setFirebaseUser(null)
+          setUser(null)
+          setIdToken(null)
+        }
+      } catch (error) {
+        console.error('Auth state change error:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  const login = async (email: string, password: string) => {
+    setIsLoading(true)
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password)
+      const token = await result.user.getIdToken()
+      setIdToken(token)
+      await syncSession(token)
+    } catch (error) {
+      console.error('Login error:', error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const signup = async (email: string, password: string, displayName?: string) => {
+    setIsLoading(true)
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password)
+
+      // Update display name if provided
+      if (displayName && auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName })
+      }
+
+      const token = await result.user.getIdToken()
+      setIdToken(token)
+      await syncSession(token)
+    } catch (error) {
+      console.error('Signup error:', error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loginWithGoogle = async () => {
+    setIsLoading(true)
+    try {
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      const token = await result.user.getIdToken()
+      setIdToken(token)
+      await syncSession(token)
+    } catch (error) {
+      console.error('Google login error:', error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const logout = async () => {
+    setIsLoading(true)
+    try {
+      await signOut(auth)
+      await fetch('/api/auth/session', { method: 'DELETE' })
+      setUser(null)
+      setFirebaseUser(null)
+      setIdToken(null)
+    } catch (error) {
+      console.error('Logout error:', error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        firebaseUser,
+        isLoading,
+        idToken,
+        login,
+        signup,
+        loginWithGoogle,
+        logout,
+        isAuthenticated: user !== null,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
+}

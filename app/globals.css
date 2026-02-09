@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark theme for OptiExacta */
+    --background: 0 0% 3%;
+    --foreground: 0 0% 98%;
+    --card: 210 25% 12%;
+    --card-foreground: 0 0% 98%;
+    --popover: 210 25% 12%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 200 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 180 85% 45%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 210 10% 35%;
+    --muted-foreground: 0 0% 75%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 15% 25%;
+    --input: 210 15% 20%;
+    --ring: 200 100% 50%;
+    --radius: 0.5rem;
+
+    /* Chart colors */
+    --chart-1: 200 100% 50%;
+    --chart-2: 180 85% 45%;
+    --chart-3: 25 95% 53%;
+    --chart-4: 340 80% 50%;
+    --chart-5: 280 75% 50%;
+
+    /* Sidebar */
+    --sidebar-background: 210 25% 12%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 200 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 25 95% 53%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 210 15% 25%;
+    --sidebar-ring: 200 100% 50%;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@layer utilities {
+  .animate-slide-down {
+    animation: slideDown 0.3s ease-out;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+  }
+  .bg-glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .bg-gradient-cyan-orange {
+    background: linear-gradient(135deg, #00d9ff 0%, #ff6b35 100%);
+  }
+  .bg-gradient-cyan-pink {
+    background: linear-gradient(135deg, #00d9ff 0%, #ff00ff 100%);
+  }
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradientShift 3s ease infinite;
+  }
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  .text-glow {
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.5), 0 0 20px rgba(0, 217, 255, 0.3);
+  }
+}
