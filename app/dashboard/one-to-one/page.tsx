@@ -8,6 +8,7 @@ export default function OneToOneSearch() {
   const [image1, setImage1] = useState<string | null>(null)
   const [image2, setImage2] = useState<string | null>(null)
   const [result, setResult] = useState<{ match: boolean; confidence: number } | null>(null)
+  const [threshold, setThreshold] = useState(0.7)
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setImage: (img: string | null) => void) => {
     const file = e.target.files?.[0]
@@ -23,10 +24,11 @@ export default function OneToOneSearch() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (image1 && image2) {
-      // Placeholder result
+      // Placeholder result - in production this would call the API
+      const confidenceScore = 0.985 // This would come from the API
       setResult({
-        match: true,
-        confidence: 98.5,
+        match: confidenceScore >= threshold,
+        confidence: confidenceScore * 100,
       })
     }
   }
@@ -37,6 +39,24 @@ export default function OneToOneSearch() {
       <p className="text-gray-400 mb-8">Compare two facial images for verification</p>
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Threshold Slider */}
+        <div className="p-4 bg-glass rounded border border-blue-900/30">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-semibold text-gray-300">Match Threshold</label>
+            <span className="text-sm text-blue-400 font-mono">{threshold.toFixed(2)}</span>
+          </div>
+          <input
+            type="range"
+            min="0.5"
+            max="0.95"
+            step="0.01"
+            value={threshold}
+            onChange={(e) => setThreshold(parseFloat(e.target.value))}
+            className="w-full"
+          />
+          <p className="text-xs text-gray-500 mt-2">Confidence score must be ≥ {(threshold * 100).toFixed(0)}% to be considered a match</p>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-8">
           {/* Image 1 */}
           <div>

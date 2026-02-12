@@ -430,3 +430,121 @@ export interface UserInfo {
 export async function getCurrentUser(): Promise<UserInfo> {
   return backendRequest('/api/me');
 }
+
+// ============================================================================
+// Video Processing
+// ============================================================================
+
+export interface VideoProcessingStatus {
+  id: number
+  queued?: boolean
+  active?: boolean
+  finished?: boolean
+  error?: string | null
+  face_count?: number
+  face_cluster_count?: number
+  body_count?: number
+  car_count?: number
+  [key: string]: any
+}
+
+export async function createVideoProcessingEntry(params: {
+  camera_group?: number
+  name?: string
+  stream_settings?: any
+}): Promise<VideoProcessingStatus> {
+  return backendRequest('/api/video-processing/videos', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  })
+}
+
+export async function patchVideoProcessingEntry(
+  videoId: number | string,
+  stream_settings: any
+): Promise<VideoProcessingStatus> {
+  return backendRequest(`/api/video-processing/videos/${videoId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ stream_settings }),
+  })
+}
+
+export async function uploadVideoProcessingSource(
+  videoId: number | string,
+  file: File
+): Promise<VideoProcessingStatus> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return backendRequest(`/api/video-processing/videos/${videoId}/upload/source_file`, {
+    method: 'PUT',
+    body: formData,
+  })
+}
+
+export async function startVideoProcessing(videoId: number | string): Promise<VideoProcessingStatus> {
+  return backendRequest(`/api/video-processing/videos/${videoId}/process`, {
+    method: 'POST',
+  })
+}
+
+export async function getVideoProcessingStatus(videoId: number | string): Promise<VideoProcessingStatus> {
+  return backendRequest(`/api/video-processing/videos/${videoId}`)
+}
+
+export interface VideoFaceResult {
+  id: number
+  bbox?: any
+  confidence?: number
+  similarity?: number
+  cluster?: number
+  created_date?: string
+  video?: number
+  [key: string]: any
+}
+
+export interface VideoFacesListResponse {
+  results: VideoFaceResult[]
+}
+
+export interface VideoFacesSearchResponse {
+  results: VideoFaceResult[]
+}
+
+export interface VideoEventsListResponse {
+  results: VideoFaceResult[]
+}
+
+export async function listVideoFaces(videoId: number | string): Promise<VideoFacesListResponse> {
+  return backendRequest(`/api/video-processing/clusters?video_archive=${encodeURIComponent(String(videoId))}`)
+}
+
+export async function listVideoEvents(videoId: number | string, limit = 10): Promise<VideoEventsListResponse> {
+  const params = new URLSearchParams()
+  params.set('video_archive', String(videoId))
+  params.set('limit', String(limit))
+
+  return backendRequest(`/api/video-processing/events?${params.toString()}`)
+}
+
+export async function searchVideoFaces(
+  videoId: number | string,
+  file: File,
+  options: { threshold?: number; limit?: number } = {}
+): Promise<VideoFacesSearchResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const params = new URLSearchParams()
+  params.set('video_archive', String(videoId))
+  if (options.threshold !== undefined) {
+    params.set('threshold', String(options.threshold))
+  }
+  if (options.limit !== undefined) {
+    params.set('limit', String(options.limit))
+  }
+  return backendRequest(`/api/video-processing/faces/search?${params.toString()}`, {
+    method: 'POST',
+    body: formData,
+  })
+}

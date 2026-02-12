@@ -10,6 +10,9 @@ const { enforceUsage } = require('./middleware/usageLimits')
 const { enforceRateLimits } = require('./middleware/rateLimits')
 const frsClient = require('./lib/frs-client')
 const shareTokens = require('./lib/share-tokens')
+const axios = require('axios')
+const FormData = require('form-data')
+const { getRedisClient } = require('./lib/redis')
 
 const app = express()
 const port = Number(process.env.PORT || 3000)
@@ -25,6 +28,19 @@ const upload = multer({
       cb(null, true);
     } else {
       cb(new Error('Only image files are allowed'));
+    }
+  },
+});
+
+const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
+const uploadVideo = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_VIDEO_SIZE },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only video files are allowed'));
     }
   },
 });
@@ -49,6 +65,28 @@ app.use(cors({
 }))
 app.use(express.json())
 
+const VIDEO_API_BASE = process.env.VIDEO_API_BASE || process.env.FRS_BASE_URL || 'http://72.60.223.48'
+const VIDEO_API_TOKEN = process.env.VIDEO_API_TOKEN || process.env.FRS_API_TOKEN || ''
+const EVENTS_API_BASE = process.env.EVENTS_API_BASE || process.env.FRS_BASE_URL || 'http://72.60.223.48'
+const EVENTS_API_TOKEN = process.env.EVENTS_API_TOKEN || process.env.FRS_API_TOKEN || ''
+
+const videoApi = axios.create({
+  baseURL: VIDEO_API_BASE,
+  timeout: 60_000,
+})
+
+const eventsApi = axios.create({
+  baseURL: EVENTS_API_BASE,
+  timeout: 60_000,
+})
+
+const normalizeDetectionId = (id) => {
+  if (!id) return null
+  if (id.startsWith('detection:')) return id
+  if (id.includes(':')) return id
+  return `detection:${id}`
+}
+
 // ============================================================================
 // HEALTH CHECKS
 // ============================================================================
@@ -65,6 +103,458 @@ app.get('/db/health', async (req, res) => {
     res.status(500).json({ status: 'error' })
   }
 })
+
+// Dev-only: reset rate limits for current tenant/IP
+app.post('/api/dev/reset-rate-limits', verifyAuth, attachTenantContext(prisma), async (req, res) => {
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(403).json({ error: 'forbidden' })
+  }
+
+  try {
+    const redis = await getRedisClient()
+    const tenantId = req.saas?.tenant?.id || 'unknown'
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown'
+
+    const patterns = [
+      `rate:tenant:${tenantId}:*`,
+      `rate:ip:${ip}:*`,
+    ]
+
+    let deleted = 0
+    for (const pattern of patterns) {
+      const keys = []
+      for await (const key of redis.scanIterator({ MATCH: pattern })) {
+        keys.push(key)
+      }
+      if (keys.length) {
+        deleted += await redis.del(keys)
+      }
+    }
+
+    res.json({ success: true, deleted })
+  } catch (error) {
+    console.error('Reset rate limits error:', error.message)
+    res.status(500).json({ error: 'Failed to reset rate limits' })
+  }
+})
+
+// ============================================================================
+// VIDEO PROCESSING PROXY
+// ============================================================================
+
+app.post(
+  '/api/video-processing/videos',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 20, ipPerMinute: 20 }),
+  async (req, res) => {
+    try {
+      const { camera_group = 1, name, stream_settings } = req.body || {}
+
+      if (!VIDEO_API_TOKEN) {
+        return res.status(500).json({ error: 'Video API token is not configured' })
+      }
+
+      const response = await videoApi.post(
+        '/videos/',
+        {
+          camera_group,
+          name: name || 'Video Upload',
+          ...(stream_settings ? { stream_settings } : {}),
+        },
+        { headers: { Authorization: `Token ${VIDEO_API_TOKEN}` } }
+      )
+
+      res.json(response.data)
+    } catch (error) {
+      console.error('Video create error:', error.message)
+      res.status(500).json({
+        error: 'Failed to create video entry',
+        detail: error.response?.data || error.message,
+      })
+    }
+  }
+)
+
+app.patch(
+  '/api/video-processing/videos/:id',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 20, ipPerMinute: 20 }),
+  async (req, res) => {
+    try {
+      if (!VIDEO_API_TOKEN) {
+        return res.status(500).json({ error: 'Video API token is not configured' })
+      }
+
+      const { id } = req.params
+      const { stream_settings } = req.body || {}
+
+      if (!stream_settings) {
+        return res.status(400).json({ error: 'stream_settings is required' })
+      }
+
+      const response = await videoApi.patch(
+        `/videos/${id}/`,
+        { stream_settings },
+        { headers: { Authorization: `Token ${VIDEO_API_TOKEN}` } }
+      )
+
+      res.json(response.data)
+    } catch (error) {
+      console.error('Video patch error:', error.message)
+      res.status(500).json({
+        error: 'Failed to update video settings',
+        detail: error.response?.data || error.message,
+      })
+    }
+  }
+)
+
+app.put(
+  '/api/video-processing/videos/:id/upload/source_file',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 10, ipPerMinute: 10 }),
+  uploadVideo.single('file'),
+  handleMulterError,
+  async (req, res) => {
+    try {
+      if (!VIDEO_API_TOKEN) {
+        return res.status(500).json({ error: 'Video API token is not configured' })
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No video file provided' })
+      }
+
+      const { id } = req.params
+      const response = await videoApi.put(
+        `/videos/${id}/upload/source_file/`,
+        req.file.buffer,
+        {
+          headers: {
+            Authorization: `Token ${VIDEO_API_TOKEN}`,
+            'Content-Type': req.file.mimetype || 'application/octet-stream',
+            'Content-Length': req.file.size,
+          },
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+        }
+      )
+
+      res.json(response.data)
+    } catch (error) {
+      console.error('Video upload error:', error.message)
+      res.status(500).json({
+        error: 'Failed to upload video',
+        detail: error.response?.data || error.message,
+      })
+    }
+  }
+)
+
+app.post(
+  '/api/video-processing/videos/:id/process',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 20, ipPerMinute: 20 }),
+  async (req, res) => {
+    try {
+      if (!VIDEO_API_TOKEN) {
+        return res.status(500).json({ error: 'Video API token is not configured' })
+      }
+
+      const { id } = req.params
+      const response = await videoApi.post(
+        `/videos/${id}/process/`,
+        null,
+        { headers: { Authorization: `Token ${VIDEO_API_TOKEN}` } }
+      )
+
+      res.json(response.data)
+    } catch (error) {
+      console.error('Video process error:', error.message)
+      res.status(500).json({
+        error: 'Failed to start processing',
+        detail: error.response?.data || error.message,
+      })
+    }
+  }
+)
+
+app.get(
+  '/api/video-processing/videos/:id',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 60 }),
+  async (req, res) => {
+    try {
+      if (!VIDEO_API_TOKEN) {
+        return res.status(500).json({ error: 'Video API token is not configured' })
+      }
+
+      const { id } = req.params
+      const response = await videoApi.get(
+        `/videos/${id}/`,
+        { headers: { Authorization: `Token ${VIDEO_API_TOKEN}` } }
+      )
+
+      res.json(response.data)
+    } catch (error) {
+      console.error('Video status error:', error.message)
+      res.status(500).json({
+        error: 'Failed to fetch video status',
+        detail: error.response?.data || error.message,
+      })
+    }
+  }
+)
+
+app.get(
+  '/api/video-processing/faces',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 60 }),
+  async (req, res) => {
+    try {
+      if (!EVENTS_API_TOKEN) {
+        return res.status(500).json({ error: 'Events API token is not configured' })
+      }
+
+      const { video_archive } = req.query
+      if (!video_archive) {
+        return res.status(400).json({ error: 'video_archive query param is required' })
+      }
+
+      const response = await eventsApi.get(
+        '/events/faces/',
+        {
+          headers: { Authorization: `Token ${EVENTS_API_TOKEN}` },
+          params: { video_archive: String(video_archive) },
+        }
+      )
+
+      res.json(response.data)
+    } catch (error) {
+      console.error('Video faces list error:', error.message)
+      res.status(500).json({
+        error: 'Failed to fetch video faces',
+        detail: error.response?.data || error.message,
+      })
+    }
+  }
+)
+
+app.get(
+  '/api/video-processing/clusters',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 60 }),
+  async (req, res) => {
+    try {
+      if (!EVENTS_API_TOKEN) {
+        return res.status(500).json({ error: 'Events API token is not configured' })
+      }
+
+      const { video_archive } = req.query
+      if (!video_archive) {
+        return res.status(400).json({ error: 'video_archive query param is required' })
+      }
+
+      const response = await eventsApi.get(
+        '/clusters/faces/',
+        {
+          headers: { Authorization: `Token ${EVENTS_API_TOKEN}` },
+          params: { video_archive: String(video_archive) },
+        }
+      )
+
+      res.json(response.data)
+    } catch (error) {
+      console.error('Video clusters list error:', error.message)
+      res.status(500).json({
+        error: 'Failed to fetch video clusters',
+        detail: error.response?.data || error.message,
+      })
+    }
+  }
+)
+
+app.get(
+  '/api/video-processing/events',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 60 }),
+  async (req, res) => {
+    try {
+      if (!EVENTS_API_TOKEN) {
+        return res.status(500).json({ error: 'Events API token is not configured' })
+      }
+
+      const { video_archive, limit = 10 } = req.query
+      if (!video_archive) {
+        return res.status(400).json({ error: 'video_archive query param is required' })
+      }
+
+      const response = await eventsApi.get(
+        '/events/faces/',
+        {
+          headers: { Authorization: `Token ${EVENTS_API_TOKEN}` },
+          params: {
+            video_archive: String(video_archive),
+            limit: Number(limit),
+            ordering: '-id',
+          },
+        }
+      )
+
+      res.json(response.data)
+    } catch (error) {
+      console.error('Video events list error:', error.message)
+      res.status(500).json({
+        error: 'Failed to fetch video events',
+        detail: error.response?.data || error.message,
+      })
+    }
+  }
+)
+
+app.post(
+  '/api/video-processing/faces/search',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 30, ipPerMinute: 30 }),
+  upload.single('file'),
+  handleMulterError,
+  async (req, res) => {
+    try {
+      if (!EVENTS_API_TOKEN) {
+        return res.status(500).json({ error: 'Events API token is not configured' })
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No query face provided' })
+      }
+
+      const detection = await frsClient.detectFaces(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype
+      )
+
+      const faceId = detection.objects?.face?.[0]?.id
+      if (!faceId) {
+        return res.status(400).json({ error: 'No face detected in query image' })
+      }
+
+      const looksLike = normalizeDetectionId(faceId)
+      const threshold = req.query.threshold ? Number(req.query.threshold) : 0.7
+      const limit = req.query.limit ? Number(req.query.limit) : 10
+      const ordering = req.query.ordering ? String(req.query.ordering) : '-looks_like_confidence'
+      const videoArchive = req.query.video_archive ? String(req.query.video_archive) : undefined
+
+      if (!videoArchive) {
+        return res.status(400).json({ error: 'video_archive query param is required' })
+      }
+
+      const response = await eventsApi.get(
+        '/clusters/faces/',
+        {
+          headers: { Authorization: `Token ${EVENTS_API_TOKEN}` },
+          params: {
+            looks_like: looksLike,
+            threshold,
+            limit,
+            ordering,
+            video_archive: videoArchive,
+          },
+        }
+      )
+
+      if (Array.isArray(response.data?.results) && response.data.results.length > 0) {
+        return res.json(response.data)
+      }
+
+      const fallback = await eventsApi.get(
+        '/events/faces/',
+        {
+          headers: { Authorization: `Token ${EVENTS_API_TOKEN}` },
+          params: {
+            looks_like: looksLike,
+            threshold,
+            limit,
+            ordering,
+            video_archive: videoArchive,
+          },
+        }
+      )
+
+      res.json(fallback.data)
+    } catch (error) {
+      console.error('Video faces search error:', error.message)
+      res.status(500).json({
+        error: 'Failed to search video faces',
+        detail: error.response?.data || error.message,
+      })
+    }
+  }
+)
+
+app.post(
+  '/api/video-processing/faces/verify',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 30, ipPerMinute: 30 }),
+  upload.fields([
+    { name: 'image1', maxCount: 1 },
+    { name: 'image2', maxCount: 1 },
+  ]),
+  handleMulterError,
+  async (req, res) => {
+    try {
+      if (!VIDEO_API_TOKEN) {
+        return res.status(500).json({ error: 'Video API token is not configured' })
+      }
+
+      const image1 = req.files?.image1?.[0]
+      const image2 = req.files?.image2?.[0]
+
+      if (!image1 || !image2) {
+        return res.status(400).json({ error: 'Both image1 and image2 are required' })
+      }
+
+      const form = new FormData()
+      form.append('image1', image1.buffer, {
+        filename: image1.originalname,
+        contentType: image1.mimetype,
+      })
+      form.append('image2', image2.buffer, {
+        filename: image2.originalname,
+        contentType: image2.mimetype,
+      })
+
+      const response = await videoApi.post(
+        '/faces/verify/',
+        form,
+        {
+          headers: {
+            Authorization: `Token ${VIDEO_API_TOKEN}`,
+            ...form.getHeaders(),
+          },
+        }
+      )
+
+      res.json(response.data)
+    } catch (error) {
+      console.error('Video faces verify error:', error.message)
+      res.status(500).json({
+        error: 'Failed to verify faces',
+        detail: error.response?.data || error.message,
+      })
+    }
+  }
+)
 
 // ============================================================================
 // USER INFO

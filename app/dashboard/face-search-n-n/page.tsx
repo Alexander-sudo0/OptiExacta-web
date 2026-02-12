@@ -730,7 +730,7 @@ export default function FaceSearchNNPage() {
                     const setBImage = setB[match.setBIndex]
                     if (!setAImage || !setBImage) return null
                     
-                    const level = getConfidenceLevel(match.confidence)
+                    const level = getConfidenceLevel(match.confidence, matchThreshold)
                     const isMatch = match.match === true
                     
                     return (

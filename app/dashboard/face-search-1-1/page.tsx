@@ -37,6 +37,7 @@ export default function FaceSearch1To1Page() {
   const [face2, setFace2] = useState<FaceState>(initialFaceState)
   const [result, setResult] = useState<OneToOneResult | null>(null)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [threshold, setThreshold] = useState(0.75)
   const [shareToken, setShareToken] = useState<{ curl: string; expiresAt: string } | null>(null)
   const [shareRequestId, setShareRequestId] = useState<string | null>(null)
   const [copySuccess, setCopySuccess] = useState(false)
@@ -60,23 +61,38 @@ export default function FaceSearch1To1Page() {
     
     try {
       const result = await detectFace(file)
-      const face = result.objects?.face?.[0]
-      
-      if (face?.id) {
-        const bbox = normalizeBbox(face.bbox)
-        setState(prev => ({
-          ...prev,
-          faceId: face.id,
-          bbox,
-          detecting: false,
-        }))
-      } else {
+      const faces = result.objects?.face || []
+
+      if (faces.length === 0) {
         setState(prev => ({
           ...prev,
           detecting: false,
+          faceId: null,
+          bbox: null,
           error: 'No face detected in image',
         }))
+        return
       }
+
+      if (faces.length > 1) {
+        setState(prev => ({
+          ...prev,
+          detecting: false,
+          faceId: null,
+          bbox: null,
+          error: 'Only one person is allowed in the image',
+        }))
+        return
+      }
+
+      const face = faces[0]
+      const bbox = normalizeBbox(face.bbox)
+      setState(prev => ({
+        ...prev,
+        faceId: face.id,
+        bbox,
+        detecting: false,
+      }))
     } catch (err: any) {
       setState(prev => ({
         ...prev,
@@ -154,7 +170,7 @@ export default function FaceSearch1To1Page() {
       // Use simple verify endpoint with detected face IDs
       const verifyResult = await verifyFaces(face1.faceId!, face2.faceId!)
       const confidence = verifyResult.confidence
-      const match = confidence >= 0.75 // Threshold for match
+      const match = confidence >= threshold // Use dynamic threshold
       
       setResult({
         id: `${Date.now()}`,
@@ -233,7 +249,7 @@ export default function FaceSearch1To1Page() {
     return null
   }
 
-  const confidenceLevel = result?.confidence ? getConfidenceLevel(result.confidence) : null
+  const confidenceLevel = result?.confidence ? getConfidenceLevel(result.confidence, threshold) : null
 
   return (
     <div className="min-h-screen bg-background">
@@ -394,9 +410,11 @@ export default function FaceSearch1To1Page() {
           <div className="hidden lg:flex flex-col items-center gap-4 py-8">
             <motion.div 
               className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold ${
-                result 
-                  ? result.match 
+                result && confidenceLevel
+                  ? confidenceLevel.isMatch
                     ? 'bg-secondary/20 text-secondary border border-secondary/30' 
+                    : confidenceLevel.isInconclusive
+                    ? 'bg-orange-500/20 text-orange-500 border border-orange-500/30'
                     : 'bg-destructive/20 text-destructive border border-destructive/30'
                   : 'bg-gradient-to-br from-primary/20 to-secondary/20 text-foreground border border-primary/30'
               }`}
@@ -408,8 +426,8 @@ export default function FaceSearch1To1Page() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-              ) : result ? (
-                result.match ? '✓' : '✗'
+              ) : result && confidenceLevel ? (
+                confidenceLevel.isMatch ? '✓' : confidenceLevel.isInconclusive ? '⚠' : '✗'
               ) : 'VS'}
             </motion.div>
             {isVerifying && (
@@ -509,6 +527,31 @@ export default function FaceSearch1To1Page() {
           </div>
         </motion.div>
 
+        {/* Threshold Slider */}
+        <motion.div 
+          className="mb-6 p-5 rounded-xl border border-border bg-card/30"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-semibold text-foreground">Match Threshold</label>
+            <span className="text-lg font-bold text-primary font-mono">{threshold.toFixed(2)}</span>
+          </div>
+          <input
+            type="range"
+            min="0.5"
+            max="0.95"
+            step="0.01"
+            value={threshold}
+            onChange={(e) => setThreshold(parseFloat(e.target.value))}
+            className="w-full h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+          />
+          <p className="text-xs text-muted-foreground mt-2">
+            Confidence score must be ≥ {(threshold * 100).toFixed(0)}% to be considered a match
+          </p>
+        </motion.div>
+
         {/* Verify Button */}
         <motion.button
           onClick={handleVerify}
@@ -540,8 +583,10 @@ export default function FaceSearch1To1Page() {
           {result && confidenceLevel && (
             <motion.div 
               className={`mt-8 rounded-2xl border-2 overflow-hidden ${
-                result.match 
+                confidenceLevel?.isMatch
                   ? 'bg-secondary/5 border-secondary/30' 
+                  : confidenceLevel?.isInconclusive
+                  ? 'bg-orange-500/5 border-orange-500/30'
                   : 'bg-destructive/5 border-destructive/30'
               }`}
               initial={{ opacity: 0, y: 20 }}
@@ -549,26 +594,42 @@ export default function FaceSearch1To1Page() {
               exit={{ opacity: 0, y: -20 }}
             >
               {/* Result header */}
-              <div className={`p-6 ${result.match ? 'bg-secondary/10' : 'bg-destructive/10'}`}>
+              <div className={`p-6 ${
+                confidenceLevel?.isMatch
+                  ? 'bg-secondary/10' 
+                  : confidenceLevel?.isInconclusive
+                  ? 'bg-orange-500/10'
+                  : 'bg-destructive/10'
+              }`}>
                 <div className="flex items-center gap-4">
                   <motion.div 
                     className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl ${
-                      result.match ? 'bg-secondary/20' : 'bg-destructive/20'
+                      confidenceLevel?.isMatch
+                        ? 'bg-secondary/20' 
+                        : confidenceLevel?.isInconclusive
+                        ? 'bg-orange-500/20'
+                        : 'bg-destructive/20'
                     }`}
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
                   >
-                    {result.match ? '✅' : '❌'}
+                    {confidenceLevel?.isMatch ? '✅' : confidenceLevel?.isInconclusive ? '⚠️' : '❌'}
                   </motion.div>
                   <div className="flex-1">
                     <h3 className="text-2xl font-bold text-foreground">
-                      {confidenceLevel.label}
+                      {confidenceLevel?.label}
                     </h3>
-                    <p className={`text-lg font-semibold ${result.match ? 'text-secondary' : 'text-destructive'}`}>
+                    <p className={`text-lg font-semibold ${
+                      confidenceLevel?.isMatch
+                        ? 'text-secondary' 
+                        : confidenceLevel?.isInconclusive
+                        ? 'text-orange-500'
+                        : 'text-destructive'
+                    }`}>
                       {(result.confidence * 100).toFixed(2)}% Similarity
                     </p>
-                    <p className="text-sm text-muted-foreground mt-1">{confidenceLevel.message}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{confidenceLevel?.message}</p>
                   </div>
                 </div>
               </div>
@@ -582,8 +643,10 @@ export default function FaceSearch1To1Page() {
                 <div className="h-3 bg-muted/20 rounded-full overflow-hidden">
                   <motion.div 
                     className={`h-full rounded-full ${
-                      result.match 
+                      confidenceLevel?.isMatch
                         ? 'bg-gradient-to-r from-secondary to-primary' 
+                        : confidenceLevel?.isInconclusive
+                        ? 'bg-gradient-to-r from-orange-400 to-orange-600'
                         : 'bg-gradient-to-r from-destructive/60 to-destructive'
                     }`}
                     initial={{ width: 0 }}
@@ -600,8 +663,14 @@ export default function FaceSearch1To1Page() {
                     <FaceThumbnail src={face1.preview} bbox={face1.bbox} size={80} className="mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">Source</p>
                   </div>
-                  <div className={`px-4 py-2 rounded-full text-sm font-bold ${result.match ? 'bg-secondary/20 text-secondary' : 'bg-destructive/20 text-destructive'}`}>
-                    {result.match ? 'MATCH' : 'NO MATCH'}
+                  <div className={`px-4 py-2 rounded-full text-sm font-bold ${
+                    confidenceLevel?.isMatch
+                      ? 'bg-secondary/20 text-secondary' 
+                      : confidenceLevel?.isInconclusive
+                      ? 'bg-orange-500/20 text-orange-500'
+                      : 'bg-destructive/20 text-destructive'
+                  }`}>
+                    {confidenceLevel?.isMatch ? 'MATCH' : confidenceLevel?.isInconclusive ? 'INCONCLUSIVE' : 'NO MATCH'}
                   </div>
                   <div className="text-center">
                     <FaceThumbnail src={face2.preview} bbox={face2.bbox} size={80} className="mx-auto mb-2" />

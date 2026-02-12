@@ -2,20 +2,153 @@
 
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/auth-context'
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
+import { listFaceSearchRequests, listShareTokens, FaceSearchRequestSummary } from '@/lib/backend-api'
+
+type DashboardStats = {
+  apiCallsToday: number
+  facesProcessedToday: number
+  activeShareTokens: number
+  systemStatus: 'Online' | 'Degraded'
+  monthRequests: number
+  monthFacesProcessed: number
+  completionRate: number
+  totalRequests: number
+}
+
+const EMPTY_STATS: DashboardStats = {
+  apiCallsToday: 0,
+  facesProcessedToday: 0,
+  activeShareTokens: 0,
+  systemStatus: 'Degraded',
+  monthRequests: 0,
+  monthFacesProcessed: 0,
+  completionRate: 0,
+  totalRequests: 0,
+}
+
+const isSameDay = (a: Date, b: Date) => (
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate()
+)
+
+const countFacesFromRequest = (request: FaceSearchRequestSummary) => {
+  const data = request.requestData || {}
+
+  if (request.type === 'ONE_TO_ONE') {
+    return 2
+  }
+
+  if (request.type === 'ONE_TO_N') {
+    const targets = Array.isArray(data.targets) ? data.targets.length : 0
+    return 1 + targets
+  }
+
+  if (request.type === 'N_TO_N') {
+    const set1 = Array.isArray(data.set1) ? data.set1.length : 0
+    const set2 = Array.isArray(data.set2) ? data.set2.length : 0
+    return set1 + set2
+  }
+
+  return 0
+}
 
 export default function DashboardPage() {
   const router = useRouter()
   const { user, isAuthenticated, logout, isLoading } = useAuth()
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS)
+  const [statsError, setStatsError] = useState<string | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/login')
     }
   }, [isAuthenticated, isLoading, router])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    let isMounted = true
+    const loadStats = async () => {
+      try {
+        setStatsLoading(true)
+        setStatsError(null)
+
+        const [requestList, shareTokens] = await Promise.all([
+          listFaceSearchRequests({ limit: 200, offset: 0 }),
+          listShareTokens(),
+        ])
+
+        if (!isMounted) return
+
+        const now = new Date()
+        const monthAgo = new Date()
+        monthAgo.setDate(monthAgo.getDate() - 30)
+
+        let apiCallsToday = 0
+        let facesProcessedToday = 0
+        let monthRequests = 0
+        let monthFacesProcessed = 0
+        let completedRequests = 0
+
+        requestList.requests.forEach((request) => {
+          const createdAt = new Date(request.createdAt)
+          const faces = countFacesFromRequest(request)
+
+          if (isSameDay(createdAt, now)) {
+            apiCallsToday += 1
+            facesProcessedToday += faces
+          }
+
+          if (createdAt >= monthAgo) {
+            monthRequests += 1
+            monthFacesProcessed += faces
+          }
+
+          if (String(request.status).toLowerCase() === 'completed') {
+            completedRequests += 1
+          }
+        })
+
+        const activeShareTokens = shareTokens.tokens.filter((token) => (
+          new Date(token.expiresAt) > now
+        )).length
+
+        const completionRate = requestList.requests.length > 0
+          ? (completedRequests / requestList.requests.length) * 100
+          : 0
+
+        setStats({
+          apiCallsToday,
+          facesProcessedToday,
+          activeShareTokens,
+          systemStatus: 'Online',
+          monthRequests,
+          monthFacesProcessed,
+          completionRate,
+          totalRequests: requestList.pagination.total,
+        })
+      } catch (error: any) {
+        if (!isMounted) return
+        setStatsError(error?.message || 'Failed to load dashboard stats')
+        setStats(EMPTY_STATS)
+      } finally {
+        if (isMounted) {
+          setStatsLoading(false)
+        }
+      }
+    }
+
+    loadStats()
+    return () => {
+      isMounted = false
+    }
+  }, [isAuthenticated])
 
   if (isLoading) {
     return (
@@ -113,6 +246,15 @@ export default function DashboardPage() {
     }
   ]
 
+  const quickStats = useMemo(() => (
+    [
+      { label: 'API Calls Today', value: stats.apiCallsToday.toLocaleString(), icon: '📡', change: statsLoading ? 'Loading' : 'Live' },
+      { label: 'Faces Processed Today', value: stats.facesProcessedToday.toLocaleString(), icon: '👤', change: statsLoading ? 'Loading' : 'Live' },
+      { label: 'Active Share Tokens', value: stats.activeShareTokens.toLocaleString(), icon: '🔗', change: statsLoading ? 'Loading' : 'Active' },
+      { label: 'System Status', value: stats.systemStatus, icon: '✅', change: statsLoading ? 'Loading' : `${stats.completionRate.toFixed(1)}%` }
+    ]
+  ), [stats, statsLoading])
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -179,12 +321,7 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          {[
-            { label: 'API Calls Today', value: '2,847', icon: '📡', change: '+12%' },
-            { label: 'Faces Processed', value: '45.2K', icon: '👤', change: '+8%' },
-            { label: 'Active Alerts', value: '3', icon: '🔔', change: 'Live' },
-            { label: 'System Status', value: 'Online', icon: '✅', change: '99.9%' }
-          ].map((stat, i) => (
+          {quickStats.map((stat, i) => (
             <motion.div 
               key={stat.label}
               className="p-4 rounded-xl border border-border bg-card/30 hover:bg-card/50 transition-colors"
@@ -274,10 +411,10 @@ export default function DashboardPage() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { label: 'API Calls This Month', value: '45,234', trend: '+23%' },
-              { label: 'Faces Processed', value: '1.2M', trend: '+18%' },
-              { label: 'Average Accuracy', value: '99.9%', trend: 'Stable' },
-              { label: 'System Uptime', value: '99.99%', trend: 'Excellent' }
+              { label: 'API Calls (30d)', value: stats.monthRequests.toLocaleString(), trend: statsLoading ? 'Loading' : `${stats.totalRequests.toLocaleString()} total` },
+              { label: 'Faces Processed (30d)', value: stats.monthFacesProcessed.toLocaleString(), trend: statsLoading ? 'Loading' : 'Based on requests' },
+              { label: 'Completion Rate', value: `${stats.completionRate.toFixed(1)}%`, trend: statsLoading ? 'Loading' : 'Completed' },
+              { label: 'System Status', value: stats.systemStatus, trend: statsError ? 'Degraded' : 'Operational' }
             ].map((stat, i) => (
               <motion.div 
                 key={stat.label} 
@@ -296,6 +433,9 @@ export default function DashboardPage() {
               </motion.div>
             ))}
           </div>
+          {statsError && (
+            <p className="mt-4 text-sm text-destructive">{statsError}</p>
+          )}
         </motion.div>
       </main>
     </div>

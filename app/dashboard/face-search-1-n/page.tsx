@@ -757,7 +757,7 @@ export default function FaceSearch1ToNPage() {
                             const target = targets[targetIdx];
                             if (!target) return null;
                             
-                            const level = getConfidenceLevel(match.confidence);
+                            const level = getConfidenceLevel(match.confidence, matchThreshold);
                             
                             return (
                               <motion.div

@@ -219,38 +219,33 @@ export function formatFileSize(bytes: number): string {
 /**
  * Get confidence level information
  */
-export function getConfidenceLevel(confidence: number): {
+export function getConfidenceLevel(confidence: number, threshold: number = 0.75): {
   label: string;
   message: string;
   color: 'green' | 'orange' | 'yellow' | 'red';
   isMatch: boolean;
+  isInconclusive: boolean;
 } {
   const pct = confidence * 100;
+  const thresholdPct = threshold * 100;
   
-  if (pct >= 72) {
+  if (pct >= thresholdPct) {
     return {
       label: 'Confirmed Match',
       message: 'The photos belong to the same person.',
       color: 'green',
       isMatch: true,
+      isInconclusive: false,
     };
   }
   
-  if (pct >= 68) {
+  if (pct >= 60 && pct <= 65) {
     return {
       label: 'Inconclusive',
       message: 'Additional verification recommended.',
       color: 'orange',
       isMatch: false,
-    };
-  }
-  
-  if (pct >= 65) {
-    return {
-      label: 'Weak Match',
-      message: 'Unlikely to be the same person.',
-      color: 'yellow',
-      isMatch: false,
+      isInconclusive: true,
     };
   }
   
@@ -259,5 +254,6 @@ export function getConfidenceLevel(confidence: number): {
     message: 'The photos do not belong to the same person.',
     color: 'red',
     isMatch: false,
+    isInconclusive: false,
   };
 }
