@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantRole {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum PlanCode {
+  FREE
+  PRO
+  PRO_PLUS
+}
+
+enum FaceSearchType {
+  ONE_TO_ONE
+  ONE_TO_N
+  N_TO_N
+}
+
+model Healthcheck {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+}
+
+model Plan {
+  id                      Int      @id @default(autoincrement())
+  code                    PlanCode @unique
+  name                    String
+  trialDays               Int
+  dailyRequestLimit       Int
+  allowFaceSearchOneToOne Boolean  @default(false)
+  allowFaceSearchOneToN   Boolean  @default(false)
+  allowFaceSearchNToN     Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  tenants                 Tenant[]
+}
+
+model Tenant {
+  id                  Int                  @id @default(autoincrement())
+  name                String
+  planId              Int
+  plan                Plan                 @relation(fields: [planId], references: [id])
+  trialEndsAt         DateTime
+  subscriptionStatus  SubscriptionStatus
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  users               TenantUser[]
+  faceSearchRequests  FaceSearchRequest[]
+  shareTokens         ShareToken[]
+}
+
+model User {
+  id                  Int                  @id @default(autoincrement())
+  firebaseUid         String               @unique
+  email               String?
+  provider            String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  tenants             TenantUser[]
+  faceSearchRequests  FaceSearchRequest[]
+  shareTokens         ShareToken[]
+}
+
+model TenantUser {
+  id        Int        @id @default(autoincrement())
+  tenantId  Int
+  userId    Int
+  role      TenantRole
+  createdAt DateTime   @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+}
+
+// Face search request stores verification results
+model FaceSearchRequest {
+  id            String          @id @default(uuid())
+  tenantId      Int
+  userId        Int
+  type          FaceSearchType
+  // Store request metadata
+  requestData   Json            // Source/target image info (without actual binary)
+  // Store FRS API response
+  resultData    Json            // Full verification result from FRS
+  status        String          @default("completed") // completed, failed, pending
+  errorMessage  String?
+  // Timestamps
+  createdAt     DateTime        @default(now())
+  expiresAt     DateTime        // Results expire (configurable, default 30 days)
+  
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  user          User            @relation(fields: [userId], references: [id])
+  shareTokens   ShareToken[]
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// Encrypted share tokens for result replay
+model ShareToken {
+  id                  String              @id @default(uuid())
+  tenantId            Int
+  userId              Int
+  faceSearchRequestId String
+  // Token hash (we store hash, never the actual token)
+  tokenHash           String              @unique
+  // Metadata
+  apiType             FaceSearchType
+  // Timestamps
+  createdAt           DateTime            @default(now())
+  expiresAt           DateTime            // 24 hours from creation
+  lastAccessedAt      DateTime?
+  accessCount         Int                 @default(0)
+  
+  tenant              Tenant              @relation(fields: [tenantId], references: [id])
+  user                User                @relation(fields: [userId], references: [id])
+  faceSearchRequest   FaceSearchRequest   @relation(fields: [faceSearchRequestId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([tenantId])
+  @@index([expiresAt])
+}

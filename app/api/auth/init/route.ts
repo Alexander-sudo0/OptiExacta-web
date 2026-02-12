@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
     )
   } catch (error: any) {
     console.error('Auth init error:', error)
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack?.split('\n').slice(0, 3).join('\n')
+    })
 
     if (error.code === 'auth/id-token-expired') {
       return NextResponse.json(
@@ -51,8 +56,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Firebase Admin not configured
+    if (error.message?.includes('private_key') || error.message?.includes('PEM')) {
+      return NextResponse.json(
+        { error: 'Firebase Admin not configured. Please add FIREBASE_PRIVATE_KEY to backend/.env' },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json(
-      { error: 'Authentication failed' },
+      { error: 'Authentication failed', details: error.message },
       { status: 500 }
     )
   }
