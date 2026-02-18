@@ -784,11 +784,24 @@ function createAdminRouter(prisma) {
         startDate,
         endDate,
         search,
+        userEmail, // NEW: filter by user email
       } = req.query
 
       const where = {}
 
-      if (userId) where.userId = parseInt(userId, 10)
+      // Filter by userId OR userEmail
+      if (userId) {
+        where.userId = parseInt(userId, 10)
+      } else if (userEmail) {
+        // Convert email to userId
+        const user = await prisma.user.findFirst({
+          where: { email: { contains: userEmail, mode: 'insensitive' } },
+          select: { id: true },
+        })
+        if (user) where.userId = user.id
+        else where.userId = -1 // No matching user, return empty results
+      }
+
       if (tenantId) where.tenantId = parseInt(tenantId, 10)
       if (action) where.action = action
 

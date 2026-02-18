@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useState } from 'react'
-import { getAuditLogs, type AuditLogEntry } from '@/lib/admin-api'
+import { getAuditLogs, getAdminUsers, type AuditLogEntry } from '@/lib/admin-api'
 
 const ACTIONS = [
   'USER_LOGIN', 'USER_SIGNUP', 'PLAN_CHANGE', 'ROLE_CHANGE',
@@ -14,8 +14,9 @@ export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 30, totalPages: 1 })
-  const [filters, setFilters] = useState({ action: '', search: '', startDate: '', endDate: '' })
+  const [filters, setFilters] = useState({ action: '', search: '', startDate: '', endDate: '', userEmail: '' })
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [users, setUsers] = useState<Array<{ id: number; email: string | null }>>([])
 
   const load = useCallback(async (page = 1) => {
     setLoading(true)
@@ -31,6 +32,16 @@ export default function AuditLogsPage() {
   }, [filters, pagination.limit])
 
   useEffect(() => { load() }, [load])
+
+  // Load users for filtering dropdown
+  useEffect(() => {
+    getAdminUsers({ limit: 1000 }).then(res => {
+      const uniqueUsers = res.users.filter((u, i, arr) => 
+        u.email && arr.findIndex(x => x.email === u.email) === i
+      )
+      setUsers(uniqueUsers)
+    }).catch(() => {})
+  }, [])
 
   function methodColor(m: string | null) {
     if (!m) return 'text-gray-500'
@@ -63,6 +74,10 @@ export default function AuditLogsPage() {
           onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
           className="px-3 py-1.5 text-sm rounded-lg bg-[#0d0d14] border border-blue-900/20 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/40 w-56"
         />
+        <select value={filters.userEmail} onChange={e => setFilters(f => ({ ...f, userEmail: e.target.value }))} className="px-3 py-1.5 text-sm rounded-lg bg-[#0d0d14] border border-blue-900/20 text-gray-300 max-w-[200px]">
+          <option value="">All Users</option>
+          {users.map(u => <option key={u.id} value={u.email || ''}>{u.email || `User #${u.id}`}</option>)}
+        </select>
         <select value={filters.action} onChange={e => setFilters(f => ({ ...f, action: e.target.value }))} className="px-3 py-1.5 text-sm rounded-lg bg-[#0d0d14] border border-blue-900/20 text-gray-300">
           <option value="">All Actions</option>
           {ACTIONS.map(a => <option key={a} value={a}>{a}</option>)}

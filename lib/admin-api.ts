@@ -194,6 +194,7 @@ export async function getAuditLogs(params: {
   page?: number
   limit?: number
   userId?: number
+  userEmail?: string
   action?: string
   startDate?: string
   endDate?: string
