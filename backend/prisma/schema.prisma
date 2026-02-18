@@ -61,6 +61,7 @@ enum PlanCode {
   FREE // Free tier with 100 requests/month
   PRO // Pro tier with 10,000 requests/month
   ENTERPRISE // Enterprise tier with unlimited requests
+  UNLIMITED // Super admin tier with unlimited everything
 }
 
 enum FaceSearchType {
@@ -161,6 +162,7 @@ model User {
   id          Int     @id @default(autoincrement())
   firebaseUid String  @unique // Links to Firebase Auth (authentication)
   email       String? // User's email from Firebase
+  username    String? // Display name / username
   provider    String? // Auth provider: "password" or "google.com"
 
   // PLATFORM ADMIN ROLE (system-wide)

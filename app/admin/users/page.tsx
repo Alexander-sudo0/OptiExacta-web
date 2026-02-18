@@ -41,6 +41,7 @@ function roleBadge(role: string) {
 }
 
 function planBadge(plan?: string) {
+  if (plan === 'UNLIMITED') return <Badge color="red">{plan}</Badge>
   if (plan === 'ENTERPRISE') return <Badge color="purple">{plan}</Badge>
   if (plan === 'PRO') return <Badge color="blue">{plan}</Badge>
   return <Badge color="gray">{plan || 'N/A'}</Badge>
@@ -148,6 +149,7 @@ export default function UsersPage() {
           <option value="FREE">Free</option>
           <option value="PRO">Pro</option>
           <option value="ENTERPRISE">Enterprise</option>
+          <option value="UNLIMITED">Unlimited</option>
         </select>
         <select value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value }))} className="px-3 py-1.5 text-sm rounded-lg bg-[#0d0d14] border border-blue-900/20 text-gray-300">
           <option value="">All Status</option>
@@ -169,25 +171,33 @@ export default function UsersPage() {
           <thead>
             <tr className="bg-[#0d0d14] text-xs text-gray-400 uppercase tracking-wider">
               <th className="text-left p-3">Email</th>
+              <th className="text-left p-3">Username</th>
               <th className="text-left p-3">Plan</th>
+              <th className="text-left p-3">Plan Started</th>
+              <th className="text-left p-3">Plan Ends</th>
               <th className="text-left p-3">Role</th>
               <th className="text-left p-3">Status</th>
-              <th className="text-left p-3">Joined</th>
               <th className="text-right p-3">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="text-center p-8 text-gray-500">Loading…</td></tr>
+              <tr><td colSpan={8} className="text-center p-8 text-gray-500">Loading…</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={6} className="text-center p-8 text-gray-500">No users found</td></tr>
+              <tr><td colSpan={8} className="text-center p-8 text-gray-500">No users found</td></tr>
             ) : users.map(u => (
               <tr key={u.id} className="border-t border-blue-900/10 hover:bg-blue-500/5 transition-colors">
                 <td className="p-3 text-sm text-white font-medium">{u.email || '—'}</td>
+                <td className="p-3 text-sm text-gray-300">{u.username || '—'}</td>
                 <td className="p-3">{planBadge(u.tenant?.plan)}</td>
+                <td className="p-3 text-xs text-gray-500">
+                  {u.tenant?.createdAt ? new Date(u.tenant.createdAt).toLocaleDateString() : '—'}
+                </td>
+                <td className="p-3 text-xs text-gray-500">
+                  {u.tenant?.trialEndsAt ? new Date(u.tenant.trialEndsAt).toLocaleDateString() : '—'}
+                </td>
                 <td className="p-3">{roleBadge(u.systemRole)}</td>
                 <td className="p-3">{statusBadge(u)}</td>
-                <td className="p-3 text-xs text-gray-500">{new Date(u.createdAt).toLocaleDateString()}</td>
                 <td className="p-3">
                   <div className="flex gap-1 justify-end flex-wrap">
                     <ActionBtn label="Plan" onClick={() => { setModal({ type: 'changePlan', user: u }); setModalInput(u.tenant?.plan || 'FREE') }} />
@@ -247,6 +257,7 @@ export default function UsersPage() {
 
             {modal.type === 'changePlan' && (
               <select value={modalInput} onChange={e => setModalInput(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-[#0d0d14] border border-blue-900/20 text-white mb-4">
+                <option value="UNLIMITED">UNLIMITED (Super Admin)</option>
                 <option value="FREE">FREE</option>
                 <option value="PRO">PRO</option>
                 <option value="ENTERPRISE">ENTERPRISE</option>

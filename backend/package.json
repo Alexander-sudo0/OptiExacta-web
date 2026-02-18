@@ -2,6 +2,9 @@
   "name": "optihexacta-backend",
   "private": true,
   "version": "0.1.0",
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js"

@@ -37,6 +37,7 @@ export interface AdminUser {
   id: number
   firebaseUid: string
   email: string | null
+  username: string | null
   provider: string | null
   systemRole: 'USER' | 'ADMIN' | 'SUPER_ADMIN'
   isSuspended: boolean
@@ -54,6 +55,7 @@ export interface AdminUser {
     planName: string
     subscriptionStatus: string
     trialEndsAt: string
+    createdAt: string
   } | null
 }
 

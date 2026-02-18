@@ -60,6 +60,23 @@ const plans = [
     allowVideoProcessing: true,
     maxVideoSize: 2048,     // 2 GB
   },
+  {
+    code: 'UNLIMITED',
+    name: 'Unlimited (Super Admin)',
+    trialDays: 0,           // No trial needed for super admins
+    dailyRequestLimit: 0,   // Unlimited
+    softDailyLimit: false,
+    monthlyRequestLimit: 0, // Unlimited
+    monthlyVideoLimit: 0,   // Unlimited
+    maxImageSize: 100,      // 100 MB
+    priceMonthly: 0,        // Free for super admins
+    priceYearly: 0,
+    allowFaceSearchOneToOne: true,
+    allowFaceSearchOneToN: true,
+    allowFaceSearchNToN: true,
+    allowVideoProcessing: true,
+    maxVideoSize: 10240,    // 10 GB
+  },
 ]
 
 async function main() {

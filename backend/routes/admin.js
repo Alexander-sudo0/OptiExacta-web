@@ -238,6 +238,7 @@ function createAdminRouter(prisma) {
         id: u.id,
         firebaseUid: u.firebaseUid,
         email: u.email,
+        username: u.username,
         provider: u.provider,
         systemRole: u.systemRole,
         isSuspended: u.isSuspended,
@@ -255,6 +256,7 @@ function createAdminRouter(prisma) {
           planName: u.tenants[0].tenant.plan.name,
           subscriptionStatus: u.tenants[0].tenant.subscriptionStatus,
           trialEndsAt: u.tenants[0].tenant.trialEndsAt,
+          createdAt: u.tenants[0].tenant.createdAt,
         } : null,
       }))
 
