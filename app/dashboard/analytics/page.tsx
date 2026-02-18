@@ -3,9 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/auth-context'
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
-import { listFaceSearchRequests, listShareTokens, FaceSearchRequestSummary } from '@/lib/backend-api'
+import { listFaceSearchRequests, listShareTokens, FaceSearchRequestSummary, backendRequest } from '@/lib/backend-api'
 
 type AnalyticsStats = {
   totalRequests: number
@@ -13,6 +11,17 @@ type AnalyticsStats = {
   avgFacesPerRequest: number
   activeShareTokens: number
 }
+
+type SubUsage = {
+  plan: string
+  monthRequests: number
+  monthlyLimit: number
+  dayRequests: number
+  dailyLimit: number
+  monthVideos: number
+  videoLimit: number
+  status: string
+} | null
 
 const EMPTY_ANALYTICS: AnalyticsStats = {
   totalRequests: 0,
@@ -23,22 +32,16 @@ const EMPTY_ANALYTICS: AnalyticsStats = {
 
 const countFacesFromRequest = (request: FaceSearchRequestSummary) => {
   const data = request.requestData || {}
-
-  if (request.type === 'ONE_TO_ONE') {
-    return 2
-  }
-
+  if (request.type === 'ONE_TO_ONE') return 2
   if (request.type === 'ONE_TO_N') {
     const targets = Array.isArray(data.targets) ? data.targets.length : 0
     return 1 + targets
   }
-
   if (request.type === 'N_TO_N') {
     const set1 = Array.isArray(data.set1) ? data.set1.length : 0
     const set2 = Array.isArray(data.set2) ? data.set2.length : 0
     return set1 + set2
   }
-
   return 0
 }
 
@@ -51,9 +54,10 @@ const typeLabel = (type: string) => {
 
 export default function AnalyticsPage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, idToken } = useAuth()
   const [requests, setRequests] = useState<FaceSearchRequestSummary[]>([])
   const [stats, setStats] = useState<AnalyticsStats>(EMPTY_ANALYTICS)
+  const [subUsage, setSubUsage] = useState<SubUsage>(null)
   const [statsError, setStatsError] = useState<string | null>(null)
   const [statsLoading, setStatsLoading] = useState(false)
 
@@ -121,10 +125,29 @@ export default function AnalyticsPage() {
     }
 
     loadAnalytics()
+
+    // Load subscription usage from backend using backendRequest
+    backendRequest('/api/payments/status')
+      .then((data: any) => {
+        if (data && isMounted) {
+          setSubUsage({
+            plan: data.subscription?.plan?.name || 'Free',
+            monthRequests: data.usage?.monthRequests || 0,
+            monthlyLimit: data.limits?.monthlyRequestLimit || 0,
+            dayRequests: data.usage?.dayRequests || 0,
+            dailyLimit: data.limits?.dailyRequestLimit || 0,
+            monthVideos: data.usage?.monthVideos || 0,
+            videoLimit: data.limits?.monthlyVideoLimit || 0,
+            status: data.subscription?.status || 'TRIAL',
+          })
+        }
+      })
+      .catch(() => {})
+
     return () => {
       isMounted = false
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, idToken])
 
   if (isLoading || !isAuthenticated) {
     return null
@@ -181,26 +204,51 @@ export default function AnalyticsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/30 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="hover:opacity-80 transition-opacity">
-              <Image 
-                src="/images/logo-white.png"
-                alt="OptiExacta"
-                width={40}
-                height={40}
-                className="w-10 h-10 object-contain"
-              />
-            </Link>
-            <h1 className="text-2xl font-bold text-foreground">Analytics Dashboard</h1>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">
+        <h1 className="text-3xl font-bold text-foreground mb-8">Analytics Dashboard</h1>
+
+        {/* Subscription Usage */}
+        {subUsage && (
+          <div className="mb-8 p-6 rounded-lg border border-border bg-card/30">
+            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+              <span className="text-xl">📊</span>
+              Subscription Usage — {subUsage.plan} Plan
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ml-2 ${
+                subUsage.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' :
+                subUsage.status === 'TRIAL' ? 'bg-yellow-500/20 text-yellow-400' :
+                'bg-red-500/20 text-red-400'
+              }`}>{subUsage.status}</span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { label: 'Monthly Requests', used: subUsage.monthRequests, limit: subUsage.monthlyLimit },
+                { label: 'Daily Requests', used: subUsage.dayRequests, limit: subUsage.dailyLimit },
+                { label: 'Video Processes', used: subUsage.monthVideos, limit: subUsage.videoLimit },
+              ].map((item) => {
+                const pct = item.limit > 0 ? Math.min(100, Math.round((item.used / item.limit) * 100)) : 0
+                const limitLabel = item.limit <= 0 ? 'Unlimited' : item.limit.toLocaleString()
+                return (
+                  <div key={item.label} className="p-4 rounded-lg bg-card/50 border border-border">
+                    <p className="text-sm text-muted-foreground mb-1">{item.label}</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {item.used.toLocaleString()} <span className="text-sm text-muted-foreground font-normal">/ {limitLabel}</span>
+                    </p>
+                    {item.limit > 0 && (
+                      <div className="mt-2 h-2 bg-border rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-yellow-500' : 'bg-gradient-to-r from-primary to-secondary'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {[

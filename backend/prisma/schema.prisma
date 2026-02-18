@@ -1,3 +1,24 @@
+// ===========================================================================
+// OPTIEXACTA DATABASE SCHEMA
+// ===========================================================================
+//
+// This schema has TWO separate role systems:
+//
+// 1. SYSTEM ROLE (on User table):
+//    - SUPER_ADMIN: Platform owner - full admin panel access
+//    - ADMIN: Platform moderator - limited admin access
+//    - USER: Regular customer (default)
+//
+// 2. TENANT ROLE (on TenantUser table):
+//    - ADMIN: Team owner (within their organization)
+//    - MEMBER: Team member
+//    - VIEWER: Read-only access
+//
+// A SUPER_ADMIN user still has a tenant and subscription plan.
+// systemRole controls admin panel access, NOT subscription features.
+//
+// ===========================================================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,23 +28,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// System-level role for platform administration
+/// IMPORTANT: This is separate from tenant roles!
+enum SystemRole {
+  USER // Regular customer (default)
+  ADMIN // Platform moderator
+  SUPER_ADMIN // Platform owner with full admin panel access
+}
+
+/// Tenant-scoped role for organization management
 enum TenantRole {
-  ADMIN
-  MEMBER
-  VIEWER
+  ADMIN // Team owner
+  MEMBER // Team member
+  VIEWER // Read-only access
 }
 
+/// Subscription lifecycle status
 enum SubscriptionStatus {
-  TRIAL
-  ACTIVE
-  PAST_DUE
-  CANCELED
+  TRIAL // Within trial period (default: 14 days)
+  ACTIVE // Paid and active
+  PAST_DUE // Payment failed
+  CANCELED // User canceled
+  SUSPENDED // Admin suspended (blocks API access)
 }
 
+/// Subscription plan tiers
 enum PlanCode {
-  FREE
-  PRO
-  PRO_PLUS
+  FREE // Free tier with 100 requests/month
+  PRO // Pro tier with 10,000 requests/month
+  ENTERPRISE // Enterprise tier with unlimited requests
 }
 
 enum FaceSearchType {
@@ -32,84 +69,163 @@ enum FaceSearchType {
   N_TO_N
 }
 
+enum AuditAction {
+  USER_LOGIN
+  USER_SIGNUP
+  USER_LOGOUT
+  PLAN_CHANGE
+  ROLE_CHANGE
+  USER_SUSPEND
+  USER_UNSUSPEND
+  USER_BAN
+  USER_UNBAN
+  TRIAL_EXTEND
+  USAGE_RESET
+  API_CALL
+  RATE_LIMIT_HIT
+  ABUSE_FLAG
+  ADMIN_ACCESS
+  SETTINGS_CHANGE
+}
+
+// ---------------------------------------------------------------------------
+// Core Models
+// ---------------------------------------------------------------------------
+
+/// Healthcheck table for monitoring
 model Healthcheck {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
 }
 
+/// SUBSCRIPTION PLANS
+/// Defines what features and limits each tier gets
+/// - FREE: 200 requests/month, 15/day, 3 video/month, 14-day trial
+/// - PRO: 500 requests/month, 200/day (soft), unlimited video
+/// - ENTERPRISE: 5000 requests/month, configurable, unlimited video
 model Plan {
   id                      Int      @id @default(autoincrement())
   code                    PlanCode @unique
-  name                    String
-  trialDays               Int
-  dailyRequestLimit       Int
+  name                    String   @map("name") // Display name like "Free Plan"
+  trialDays               Int // How many days trial period (usually 14)
+  dailyRequestLimit       Int      @default(0) // Per-day request cap (0 = unlimited)
+  softDailyLimit          Boolean  @default(false) // If true, daily limit is a warning, not a hard block
+  monthlyRequestLimit     Int      @default(0) // Monthly request cap (0 = unlimited)
+  monthlyVideoLimit       Int      @default(0) // Monthly video processing cap (0 = unlimited)
+  maxImageSize            Int      @default(2) // Maximum image upload size in MB
+  priceMonthly            Float    @default(0) // Monthly price in USD
+  priceYearly             Float    @default(0) // Yearly price in USD (discounted)
   allowFaceSearchOneToOne Boolean  @default(false)
   allowFaceSearchOneToN   Boolean  @default(false)
   allowFaceSearchNToN     Boolean  @default(false)
+  allowVideoProcessing    Boolean  @default(false)
+  maxVideoSize            Int      @default(100) // Maximum video size in MB
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
-  tenants                 Tenant[]
+  tenants                 Tenant[] // All organizations on this plan
 }
 
+/// ORGANIZATION/CUSTOMER
+/// Each paying customer has one tenant (their organization/workspace)
+/// A tenant has:
+/// - A subscription plan (FREE/PRO/ENTERPRISE)
+/// - Multiple users (team members)
+/// - API usage limits based on plan
 model Tenant {
-  id                  Int                  @id @default(autoincrement())
-  name                String
-  planId              Int
-  plan                Plan                 @relation(fields: [planId], references: [id])
-  trialEndsAt         DateTime
-  subscriptionStatus  SubscriptionStatus
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  users               TenantUser[]
-  faceSearchRequests  FaceSearchRequest[]
-  shareTokens         ShareToken[]
+  id                 Int                 @id @default(autoincrement())
+  name               String // Organization name (e.g., "acme-corp-tenant")
+  planId             Int
+  plan               Plan                @relation(fields: [planId], references: [id])
+  trialEndsAt        DateTime // When trial expires (usually +14 days from signup)
+  subscriptionStatus SubscriptionStatus // TRIAL, ACTIVE, CANCELED, SUSPENDED
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  users              TenantUser[] // Team members in this organization
+  faceSearchRequests FaceSearchRequest[] // API usage history
+  shareTokens        ShareToken[] // Shared result links
+  abuseFlags         AbuseFlag[] // Abuse detection flags
+  auditLogs          AuditLog[] // Admin action logs for this tenant
 }
 
+/// USERS (Individual People)
+/// Each person who signs up gets a User record
+/// IMPORTANT: Users have TWO types of roles:
+///   1. systemRole: USER/ADMIN/SUPER_ADMIN (for platform admin access)
+///   2. tenant role: via TenantUser join table (ADMIN/MEMBER/VIEWER within their org)
+/// 
+/// Example:
+///   - You (platform owner): systemRole=SUPER_ADMIN, tenant.role=ADMIN, plan=FREE
+///   - Regular customer: systemRole=USER, tenant.role=ADMIN, plan=PRO
+///   - Team member: systemRole=USER, tenant.role=MEMBER, plan=(inherited from tenant)
 model User {
-  id                  Int                  @id @default(autoincrement())
-  firebaseUid         String               @unique
-  email               String?
-  provider            String?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  tenants             TenantUser[]
-  faceSearchRequests  FaceSearchRequest[]
-  shareTokens         ShareToken[]
+  id          Int     @id @default(autoincrement())
+  firebaseUid String  @unique // Links to Firebase Auth (authentication)
+  email       String? // User's email from Firebase
+  provider    String? // Auth provider: "password" or "google.com"
+
+  // PLATFORM ADMIN ROLE (system-wide)
+  systemRole SystemRole @default(USER) // USER/ADMIN/SUPER_ADMIN
+
+  // ACCOUNT RESTRICTIONS (admin can suspend/ban users)
+  isSuspended   Boolean   @default(false) // Temporary block (reversible)
+  isBanned      Boolean   @default(false) // Permanent block (Firebase account disabled)
+  suspendedAt   DateTime? // When suspension started
+  bannedAt      DateTime? // When ban was applied
+  suspendReason String? // Admin's reason for suspension
+  banReason     String? // Admin's reason for ban
+
+  // ACTIVITY TRACKING
+  lastLoginAt DateTime? // Last time user logged in
+  loginCount  Int       @default(0) // Total number of logins
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // RELATIONSHIPS
+  tenants            TenantUser[] // Organizations this user belongs to (usually just 1)
+  faceSearchRequests FaceSearchRequest[] // API calls made by this user
+  shareTokens        ShareToken[] // Shared results created by this user
+  auditLogs          AuditLog[] // Admin actions performed by this user
+  abuseFlags         AbuseFlag[] // Abuse flags for this user
+
+  // SIGNUP METADATA (for multi-account detection)
+  signupIp        String? // IP address at signup time
+  signupUserAgent String? // Browser user agent at signup time
 }
 
+/// USER-TENANT RELATIONSHIP (Join Table)
+/// Links users to their organization(s) with a role
+/// Most users have exactly 1 tenant (their own organization)
+/// In the future, could support users belonging to multiple tenants
 model TenantUser {
   id        Int        @id @default(autoincrement())
   tenantId  Int
   userId    Int
-  role      TenantRole
+  role      TenantRole // ADMIN (owner), MEMBER, or VIEWER
   createdAt DateTime   @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
 
-  @@unique([tenantId, userId])
+  @@unique([tenantId, userId]) // A user can only have one role per tenant
   @@index([userId])
 }
 
-// Face search request stores verification results
 model FaceSearchRequest {
-  id            String          @id @default(uuid())
-  tenantId      Int
-  userId        Int
-  type          FaceSearchType
-  // Store request metadata
-  requestData   Json            // Source/target image info (without actual binary)
-  // Store FRS API response
-  resultData    Json            // Full verification result from FRS
-  status        String          @default("completed") // completed, failed, pending
-  errorMessage  String?
-  // Timestamps
-  createdAt     DateTime        @default(now())
-  expiresAt     DateTime        // Results expire (configurable, default 30 days)
-  
-  tenant        Tenant          @relation(fields: [tenantId], references: [id])
-  user          User            @relation(fields: [userId], references: [id])
-  shareTokens   ShareToken[]
+  id           String         @id @default(uuid())
+  tenantId     Int
+  userId       Int
+  type         FaceSearchType
+  requestData  Json
+  resultData   Json
+  status       String         @default("completed")
+  errorMessage String?
+  createdAt    DateTime       @default(now())
+  expiresAt    DateTime
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  shareTokens ShareToken[]
 
   @@index([tenantId])
   @@index([userId])
@@ -117,27 +233,75 @@ model FaceSearchRequest {
   @@index([createdAt])
 }
 
-// Encrypted share tokens for result replay
 model ShareToken {
-  id                  String              @id @default(uuid())
+  id                  String         @id @default(uuid())
   tenantId            Int
   userId              Int
   faceSearchRequestId String
-  // Token hash (we store hash, never the actual token)
-  tokenHash           String              @unique
-  // Metadata
+  tokenHash           String         @unique
   apiType             FaceSearchType
-  // Timestamps
-  createdAt           DateTime            @default(now())
-  expiresAt           DateTime            // 24 hours from creation
+  createdAt           DateTime       @default(now())
+  expiresAt           DateTime
   lastAccessedAt      DateTime?
-  accessCount         Int                 @default(0)
-  
-  tenant              Tenant              @relation(fields: [tenantId], references: [id])
-  user                User                @relation(fields: [userId], references: [id])
-  faceSearchRequest   FaceSearchRequest   @relation(fields: [faceSearchRequestId], references: [id], onDelete: Cascade)
+  accessCount         Int            @default(0)
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  user              User              @relation(fields: [userId], references: [id])
+  faceSearchRequest FaceSearchRequest @relation(fields: [faceSearchRequestId], references: [id], onDelete: Cascade)
 
   @@index([tokenHash])
   @@index([tenantId])
   @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Audit Log — Every admin action, API call, and abuse event is logged here
+// ---------------------------------------------------------------------------
+model AuditLog {
+  id             String      @id @default(uuid())
+  userId         Int?
+  tenantId       Int?
+  action         AuditAction
+  endpoint       String?
+  method         String? // GET, POST, PUT, DELETE
+  ipAddress      String?
+  userAgent      String?
+  requestSize    Int? // bytes
+  responseStatus Int? // HTTP status code
+  detail         Json? // arbitrary metadata
+  timestamp      DateTime    @default(now())
+
+  user   User?   @relation(fields: [userId], references: [id])
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([ipAddress])
+}
+
+// ---------------------------------------------------------------------------
+// Abuse Flag — Automatically detected suspicious activity
+// ---------------------------------------------------------------------------
+model AbuseFlag {
+  id         String    @id @default(uuid())
+  userId     Int? // Nullable — flags can target anonymous IPs (e.g. failed login floods)
+  tenantId   Int?
+  reason     String // e.g. "api_spike", "excessive_failures", "rate_limit_violations"
+  severity   String    @default("medium") // low, medium, high, critical
+  details    Json? // spike magnitude, endpoint, etc.
+  meta       Json? // Extra context (IP, email, etc.)
+  resolved   Boolean   @default(false)
+  resolvedBy Int? // admin user id who resolved
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user   User?   @relation(fields: [userId], references: [id])
+  Tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([userId])
+  @@index([severity])
+  @@index([resolved])
+  @@index([createdAt])
 }

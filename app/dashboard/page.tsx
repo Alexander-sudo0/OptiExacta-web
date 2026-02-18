@@ -150,21 +150,7 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated])
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl border-4 border-border border-t-primary animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return null
-  }
-
+  // Define all hooks BEFORE conditional returns (React rules of hooks)
   const features = [
     {
       id: '1-to-1',
@@ -192,19 +178,7 @@ export default function DashboardPage() {
       stats: 'Real-time',
       color: 'from-secondary to-teal-400'
     },
-    {
-      id: 'watchlist',
-      name: 'Watchlist Monitoring',
-      description: 'Real-time alerts when monitored individuals are detected',
-      href: '/dashboard/watchlist',
-      icon: (
-        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-        </svg>
-      ),
-      stats: '24/7 Monitoring',
-      color: 'from-orange-500 to-red-500'
-    },
+
     {
       id: 'video',
       name: 'Video Processing',
@@ -231,72 +205,36 @@ export default function DashboardPage() {
       stats: 'Real-time Data',
       color: 'from-blue-500 to-indigo-500'
     },
-    {
-      id: 'studio',
-      name: 'Face Studio',
-      description: 'Image enhancement and preprocessing for optimal recognition',
-      href: '/dashboard/face-studio',
-      icon: (
-        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      ),
-      stats: 'Advanced Tools',
-      color: 'from-emerald-500 to-green-500'
-    }
+
   ]
 
   const quickStats = useMemo(() => (
     [
       { label: 'API Calls Today', value: stats.apiCallsToday.toLocaleString(), icon: '📡', change: statsLoading ? 'Loading' : 'Live' },
       { label: 'Faces Processed Today', value: stats.facesProcessedToday.toLocaleString(), icon: '👤', change: statsLoading ? 'Loading' : 'Live' },
-      { label: 'Active Share Tokens', value: stats.activeShareTokens.toLocaleString(), icon: '🔗', change: statsLoading ? 'Loading' : 'Active' },
-      { label: 'System Status', value: stats.systemStatus, icon: '✅', change: statsLoading ? 'Loading' : `${stats.completionRate.toFixed(1)}%` }
+      { label: 'API Calls (30d)', value: stats.monthRequests.toLocaleString(), icon: '📊', change: statsLoading ? 'Loading' : `${stats.totalRequests.toLocaleString()} total` },
+      { label: 'Completion Rate', value: `${stats.completionRate.toFixed(1)}%`, icon: '✅', change: statsLoading ? 'Loading' : 'Completed' },
     ]
   ), [stats, statsLoading])
 
+  // Conditional returns AFTER all hooks
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-2xl border-4 border-border border-t-primary animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return null
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/30 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <Image 
-              src="/images/logo-white.png"
-              alt="OptiExacta"
-              width={44}
-              height={44}
-              className="w-11 h-11 object-contain"
-            />
-            <div>
-              <h1 className="text-xl font-bold text-foreground">OptiExacta</h1>
-              <p className="text-[10px] text-muted-foreground font-medium tracking-wider">FACIAL RECOGNITION PLATFORM</p>
-            </div>
-          </Link>
-
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-3 px-4 py-2 rounded-xl bg-card/50 border border-border">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-sm font-bold text-white">
-                {user?.username?.charAt(0).toUpperCase()}
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-medium text-foreground">{user?.username}</p>
-                <p className="text-[10px] text-muted-foreground">Administrator</p>
-              </div>
-            </div>
-            <button
-              onClick={logout}
-              className="px-4 py-2 text-sm font-medium border border-border rounded-xl hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors text-foreground flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
@@ -307,7 +245,7 @@ export default function DashboardPage() {
           transition={{ duration: 0.5 }}
         >
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-            Welcome back, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{user?.username}</span>
+            Welcome back, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{user?.displayName || 'User'}</span>
           </h2>
           <p className="text-lg text-muted-foreground">
             Access OptiExacta's powerful facial recognition features
@@ -409,12 +347,11 @@ export default function DashboardPage() {
             </svg>
             Platform Performance
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
             {[
               { label: 'API Calls (30d)', value: stats.monthRequests.toLocaleString(), trend: statsLoading ? 'Loading' : `${stats.totalRequests.toLocaleString()} total` },
               { label: 'Faces Processed (30d)', value: stats.monthFacesProcessed.toLocaleString(), trend: statsLoading ? 'Loading' : 'Based on requests' },
               { label: 'Completion Rate', value: `${stats.completionRate.toFixed(1)}%`, trend: statsLoading ? 'Loading' : 'Completed' },
-              { label: 'System Status', value: stats.systemStatus, trend: statsError ? 'Degraded' : 'Operational' }
             ].map((stat, i) => (
               <motion.div 
                 key={stat.label} 

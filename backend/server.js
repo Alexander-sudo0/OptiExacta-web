@@ -1,13 +1,19 @@
 require('dotenv').config()
 
 const express = require('express')
+const helmet = require('helmet')
 const cors = require('cors')
 const { PrismaClient } = require('@prisma/client')
 const multer = require('multer')
 const { verifyAuth } = require('./middleware/verifyAuth')
 const { attachTenantContext } = require('./middleware/tenantContext')
-const { enforceUsage } = require('./middleware/usageLimits')
+const { enforceUsage, enforceImageSize } = require('./middleware/usageLimits')
 const { enforceRateLimits } = require('./middleware/rateLimits')
+const { requireSuperAdmin } = require('./middleware/adminAuth')
+const { auditMiddleware } = require('./lib/audit')
+const { createAdminRouter } = require('./routes/admin')
+const { createPaymentRouter } = require('./routes/payments')
+const { startAbuseScanner } = require('./lib/abuse-detection')
 const frsClient = require('./lib/frs-client')
 const shareTokens = require('./lib/share-tokens')
 const axios = require('axios')
@@ -18,29 +24,36 @@ const app = express()
 const port = Number(process.env.PORT || 3000)
 const prisma = new PrismaClient()
 
+// --- Security hardening ---
+app.set('trust proxy', 1) // Trust first proxy hop (nginx/Docker)
+app.use(helmet())
+
 // Multer config for file uploads (2MB limit)
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+const ALLOWED_VIDEO_MIMES = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'])
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (ALLOWED_IMAGE_MIMES.has(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'));
+      cb(new Error(`Invalid image type: ${file.mimetype}. Allowed: JPEG, PNG, WebP, GIF`));
     }
   },
 });
 
-const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB default (plan.maxVideoSize enforced per-route)
 const uploadVideo = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_VIDEO_SIZE },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('video/')) {
+    if (ALLOWED_VIDEO_MIMES.has(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only video files are allowed'));
+      cb(new Error(`Invalid video type: ${file.mimetype}. Allowed: MP4, WebM, MOV, AVI`));
     }
   },
 });
@@ -49,7 +62,7 @@ const uploadVideo = multer({
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 2MB limit' });
+      return res.status(413).json({ code: 'FILE_TOO_LARGE', error: 'File size exceeds the allowed limit' });
     }
     return res.status(400).json({ error: err.message });
   }
@@ -63,7 +76,7 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3002',
   credentials: true,
 }))
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
 
 const VIDEO_API_BASE = process.env.VIDEO_API_BASE || process.env.FRS_BASE_URL || 'http://72.60.223.48'
 const VIDEO_API_TOKEN = process.env.VIDEO_API_TOKEN || process.env.FRS_API_TOKEN || ''
@@ -88,6 +101,12 @@ const normalizeDetectionId = (id) => {
 }
 
 // ============================================================================
+// AUDIT MIDDLEWARE — must be BEFORE all routes so res.on('finish') fires
+// ============================================================================
+
+app.use(auditMiddleware(prisma))
+
+// ============================================================================
 // HEALTH CHECKS
 // ============================================================================
 
@@ -101,6 +120,62 @@ app.get('/db/health', async (req, res) => {
     res.json({ status: 'ok' })
   } catch (error) {
     res.status(500).json({ status: 'error' })
+  }
+})
+
+// ============================================================================
+// FAILED LOGIN MONITORING (called by frontend on failed Firebase auth)
+// ============================================================================
+
+const FAILED_LOGIN_THRESHOLD = 10 // abuse flag after this many failures
+const FAILED_LOGIN_LOCKOUT = 20   // temporary IP lockout after this many
+
+app.post('/api/auth/login-failed', async (req, res) => {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || '0.0.0.0'
+  const { email } = req.body || {}
+
+  try {
+    const redis = await getRedisClient()
+    const dayKey = `failed-login:${ip}:${new Date().toISOString().slice(0, 10)}`
+    const count = await redis.incr(dayKey)
+    if (count === 1) await redis.expire(dayKey, 86_400)
+
+    // Temporary lockout
+    if (count >= FAILED_LOGIN_LOCKOUT) {
+      return res.status(429).json({
+        code: 'LOGIN_LOCKED',
+        message: 'Too many failed login attempts. Try again later.',
+      })
+    }
+
+    // Create abuse flag at threshold
+    if (count === FAILED_LOGIN_THRESHOLD) {
+      await prisma.abuseFlag.create({
+        data: {
+          reason: `${count} failed login attempts from IP ${ip} (email: ${email || 'unknown'})`,
+          severity: 'HIGH',
+          meta: { ip, email, count },
+        },
+      }).catch(() => {})
+    }
+  } catch {
+    // Redis down — still respond OK
+  }
+
+  res.json({ ok: true })
+})
+
+// Check if IP is login-locked (frontend can call before showing login form)
+app.get('/api/auth/login-status', async (req, res) => {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || '0.0.0.0'
+
+  try {
+    const redis = await getRedisClient()
+    const dayKey = `failed-login:${ip}:${new Date().toISOString().slice(0, 10)}`
+    const count = Number(await redis.get(dayKey)) || 0
+    res.json({ locked: count >= FAILED_LOGIN_LOCKOUT, attempts: count })
+  } catch {
+    res.json({ locked: false, attempts: 0 })
   }
 })
 
@@ -146,7 +221,8 @@ app.post(
   '/api/video-processing/videos',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 20, ipPerMinute: 20 }),
+  enforceRateLimits({ tenantPerMinute: 20 }),
+  enforceUsage(prisma, { allowColumn: 'allowVideoProcessing', featureKey: 'Video Processing' }),
   async (req, res) => {
     try {
       const { camera_group = 1, name, stream_settings } = req.body || {}
@@ -180,7 +256,8 @@ app.patch(
   '/api/video-processing/videos/:id',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 20, ipPerMinute: 20 }),
+  enforceRateLimits({ tenantPerMinute: 20 }),
+  enforceUsage(prisma, { allowColumn: 'allowVideoProcessing', featureKey: 'Video Processing' }),
   async (req, res) => {
     try {
       if (!VIDEO_API_TOKEN) {
@@ -215,7 +292,8 @@ app.put(
   '/api/video-processing/videos/:id/upload/source_file',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 10, ipPerMinute: 10 }),
+  enforceRateLimits({ tenantPerMinute: 10 }),
+  enforceUsage(prisma, { allowColumn: 'allowVideoProcessing', featureKey: 'Video Processing', isVideo: true }),
   uploadVideo.single('file'),
   handleMulterError,
   async (req, res) => {
@@ -226,6 +304,15 @@ app.put(
 
       if (!req.file) {
         return res.status(400).json({ error: 'No video file provided' })
+      }
+
+      // Enforce plan-specific video size limit
+      const maxMB = req.saas?.plan?.maxVideoSize || 100
+      if (req.file.size > maxMB * 1024 * 1024) {
+        return res.status(413).json({
+          code: 'VIDEO_TOO_LARGE',
+          error: `Video exceeds your plan limit of ${maxMB}MB`,
+        })
       }
 
       const { id } = req.params
@@ -258,7 +345,8 @@ app.post(
   '/api/video-processing/videos/:id/process',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 20, ipPerMinute: 20 }),
+  enforceRateLimits({ tenantPerMinute: 20 }),
+  enforceUsage(prisma, { allowColumn: 'allowVideoProcessing', featureKey: 'Video Processing' }),
   async (req, res) => {
     try {
       if (!VIDEO_API_TOKEN) {
@@ -287,7 +375,8 @@ app.get(
   '/api/video-processing/videos/:id',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 60 }),
+  enforceRateLimits({ tenantPerMinute: 60 }),
+  enforceUsage(prisma, { allowColumn: 'allowVideoProcessing', featureKey: 'Video Processing' }),
   async (req, res) => {
     try {
       if (!VIDEO_API_TOKEN) {
@@ -315,7 +404,8 @@ app.get(
   '/api/video-processing/faces',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 60 }),
+  enforceRateLimits({ tenantPerMinute: 60 }),
+  enforceUsage(prisma, { allowColumn: 'allowVideoProcessing', featureKey: 'Video Processing' }),
   async (req, res) => {
     try {
       if (!EVENTS_API_TOKEN) {
@@ -350,7 +440,8 @@ app.get(
   '/api/video-processing/clusters',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 60 }),
+  enforceRateLimits({ tenantPerMinute: 60 }),
+  enforceUsage(prisma, { allowColumn: 'allowVideoProcessing', featureKey: 'Video Processing' }),
   async (req, res) => {
     try {
       if (!EVENTS_API_TOKEN) {
@@ -385,7 +476,8 @@ app.get(
   '/api/video-processing/events',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 60 }),
+  enforceRateLimits({ tenantPerMinute: 60 }),
+  enforceUsage(prisma, { allowColumn: 'allowVideoProcessing', featureKey: 'Video Processing' }),
   async (req, res) => {
     try {
       if (!EVENTS_API_TOKEN) {
@@ -424,9 +516,11 @@ app.post(
   '/api/video-processing/faces/search',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 30, ipPerMinute: 30 }),
+  enforceRateLimits({ tenantPerMinute: 30 }),
+  enforceUsage(prisma, { allowColumn: 'allowVideoProcessing', featureKey: 'Video Processing' }),
   upload.single('file'),
   handleMulterError,
+  enforceImageSize(),
   async (req, res) => {
     try {
       if (!EVENTS_API_TOKEN) {
@@ -505,12 +599,14 @@ app.post(
   '/api/video-processing/faces/verify',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 30, ipPerMinute: 30 }),
+  enforceRateLimits({ tenantPerMinute: 30 }),
+  enforceUsage(prisma, { allowColumn: 'allowVideoProcessing', featureKey: 'Video Processing' }),
   upload.fields([
     { name: 'image1', maxCount: 1 },
     { name: 'image2', maxCount: 1 },
   ]),
   handleMulterError,
+  enforceImageSize(),
   async (req, res) => {
     try {
       if (!VIDEO_API_TOKEN) {
@@ -564,14 +660,15 @@ app.get(
   '/api/me',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 60 }),
+  enforceRateLimits({ tenantPerMinute: 60 }),
   (req, res) => {
     const { user, tenant, role, plan } = req.saas
     res.json({
       user: {
         id: user.id,
         email: user.email,
-        provider: user.provider
+        provider: user.provider,
+        systemRole: user.systemRole // USER / ADMIN / SUPER_ADMIN
       },
       tenant: {
         id: tenant.id,
@@ -579,14 +676,20 @@ app.get(
         subscriptionStatus: tenant.subscriptionStatus,
         trialEndsAt: tenant.trialEndsAt
       },
-      role,
+      role, // Tenant-level role (ADMIN/MEMBER from TenantUser)
       plan: {
         code: plan.code,
         name: plan.name,
         dailyRequestLimit: plan.dailyRequestLimit,
+        softDailyLimit: plan.softDailyLimit,
+        monthlyRequestLimit: plan.monthlyRequestLimit,
+        monthlyVideoLimit: plan.monthlyVideoLimit,
+        maxImageSize: plan.maxImageSize,
+        maxVideoSize: plan.maxVideoSize,
         allowFaceSearchOneToOne: plan.allowFaceSearchOneToOne,
         allowFaceSearchOneToN: plan.allowFaceSearchOneToN,
-        allowFaceSearchNToN: plan.allowFaceSearchNToN
+        allowFaceSearchNToN: plan.allowFaceSearchNToN,
+        allowVideoProcessing: plan.allowVideoProcessing,
       }
     })
   }
@@ -598,19 +701,28 @@ app.get(
 
 app.post(
   '/api/frs/detect',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 30 }),
+  enforceUsage(prisma, { allowColumn: 'allowFaceSearchOneToOne', featureKey: 'Face Search' }),
   upload.single('photo'),
   handleMulterError,
+  enforceImageSize(),
   async (req, res) => {
+    console.log('📸 Face detection request received:', req.file?.originalname);
     try {
       if (!req.file) {
+        console.log('❌ No file in request');
         return res.status(400).json({ error: 'No image file provided' });
       }
 
+      console.log('🔍 Detecting faces in image...');
       const result = await frsClient.detectFaces(
         req.file.buffer,
         req.file.originalname,
         req.file.mimetype
       );
+      console.log('✅ Detection result:', result.objects?.face?.length || 0, 'faces found');
 
       // Normalize bbox in response
       if (result.objects?.face) {
@@ -638,6 +750,10 @@ app.post(
 
 app.get(
   '/api/frs/verify',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 30 }),
+  enforceUsage(prisma, { allowColumn: 'allowFaceSearchOneToOne', featureKey: 'Face Verification' }),
   async (req, res) => {
     try {
       const { object1, object2 } = req.query;
@@ -667,7 +783,7 @@ app.post(
   '/api/face-search/one-to-one',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 60 }),
+  enforceRateLimits({ tenantPerMinute: 60 }),
   enforceUsage(prisma, {
     featureKey: 'FACE_SEARCH_ONE_TO_ONE',
     allowColumn: 'allowFaceSearchOneToOne'
@@ -677,6 +793,7 @@ app.post(
     { name: 'target', maxCount: 1 }
   ]),
   handleMulterError,
+  enforceImageSize(),
   async (req, res) => {
     try {
       const sourceFile = req.files?.source?.[0];
@@ -734,7 +851,7 @@ app.post(
   '/api/face-search/one-to-n',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 30, ipPerMinute: 30 }),
+  enforceRateLimits({ tenantPerMinute: 30 }),
   enforceUsage(prisma, {
     featureKey: 'FACE_SEARCH_ONE_TO_N',
     allowColumn: 'allowFaceSearchOneToN'
@@ -744,6 +861,7 @@ app.post(
     { name: 'targets', maxCount: 50 }
   ]),
   handleMulterError,
+  enforceImageSize(),
   async (req, res) => {
     try {
       const sourceFile = req.files?.source?.[0];
@@ -812,7 +930,7 @@ app.post(
   '/api/face-search/n-to-n',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 10, ipPerMinute: 10 }),
+  enforceRateLimits({ tenantPerMinute: 10 }),
   enforceUsage(prisma, {
     featureKey: 'FACE_SEARCH_N_TO_N',
     allowColumn: 'allowFaceSearchNToN'
@@ -822,6 +940,7 @@ app.post(
     { name: 'set2', maxCount: 20 }
   ]),
   handleMulterError,
+  enforceImageSize(),
   async (req, res) => {
     try {
       const set1Files = req.files?.set1 || [];
@@ -891,7 +1010,7 @@ app.get(
   '/api/face-search/requests',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 120, ipPerMinute: 60 }),
+  enforceRateLimits({ tenantPerMinute: 120 }),
   async (req, res) => {
     try {
       const { type, limit = 50, offset = 0, sort = 'desc' } = req.query;
@@ -942,7 +1061,7 @@ app.get(
   '/api/face-search/requests/:id',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 120, ipPerMinute: 60 }),
+  enforceRateLimits({ tenantPerMinute: 120 }),
   async (req, res) => {
     try {
       const request = await prisma.faceSearchRequest.findFirst({
@@ -970,7 +1089,7 @@ app.delete(
   '/api/face-search/requests/:id',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 30 }),
+  enforceRateLimits({ tenantPerMinute: 60 }),
   async (req, res) => {
     try {
       const request = await prisma.faceSearchRequest.findFirst({
@@ -1002,7 +1121,8 @@ app.post(
   '/api/face-search/store-result',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 30 }),
+  enforceRateLimits({ tenantPerMinute: 60 }),
+  enforceUsage(prisma),
   async (req, res) => {
     try {
       const { type, requestData, resultData } = req.body || {};
@@ -1053,7 +1173,7 @@ app.post(
   '/api/share',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 30, ipPerMinute: 30 }),
+  enforceRateLimits({ tenantPerMinute: 30 }),
   async (req, res) => {
     try {
       const { requestId } = req.body;
@@ -1155,7 +1275,7 @@ app.get(
   '/api/share/tokens',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 30 }),
+  enforceRateLimits({ tenantPerMinute: 60 }),
   async (req, res) => {
     try {
       const tokens = await prisma.shareToken.findMany({
@@ -1188,7 +1308,7 @@ app.delete(
   '/api/share/tokens/:id',
   verifyAuth,
   attachTenantContext(prisma),
-  enforceRateLimits({ tenantPerMinute: 60, ipPerMinute: 30 }),
+  enforceRateLimits({ tenantPerMinute: 60 }),
   async (req, res) => {
     try {
       const token = await prisma.shareToken.findFirst({
@@ -1216,9 +1336,40 @@ app.delete(
 )
 
 // ============================================================================
+// ADMIN ROUTES (protected: verifyAuth + tenantContext + SUPER_ADMIN)
+// ============================================================================
+
+app.use(
+  '/api/admin',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 30 }),
+  requireSuperAdmin,
+  createAdminRouter(prisma)
+)
+
+// ============================================================================
+// PAYMENT / SUBSCRIPTION ROUTES
+// ============================================================================
+
+// Razorpay webhook — MUST be before verifyAuth (no auth, uses signature)
+app.use('/api/payments/webhook', createPaymentRouter(prisma))
+
+// Authenticated subscription endpoints
+app.use(
+  '/api/payments',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 30 }),
+  createPaymentRouter(prisma)
+)
+
+// ============================================================================
 // SERVER START
 // ============================================================================
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Backend listening on ${port}`)
+  // Start abuse detection scanner (every 5 minutes)
+  startAbuseScanner(prisma, 5 * 60 * 1000)
 })

@@ -5,7 +5,7 @@
  * SECURITY: This client only talks to our backend, never directly to FRS.
  */
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3011';
 
 interface RequestOptions {
   method?: string;
@@ -19,7 +19,7 @@ interface RequestOptions {
 async function getIdToken(): Promise<string | null> {
   // In development mode, allow bypassing auth if SKIP_AUTH_IN_DEV is set
   if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_SKIP_AUTH_IN_DEV === 'true') {
-    return null; // No token needed in dev bypass mode
+    return 'dev-token'; // Use special dev token that backend recognizes
   }
   
   try {
@@ -42,6 +42,7 @@ export async function backendRequest<T = any>(
   options: RequestOptions = {}
 ): Promise<T> {
   const token = await getIdToken();
+  console.log('[backend-api] Making request to:', endpoint, 'with token:', token ? 'present' : 'MISSING');
   
   const headers: Record<string, string> = {
     ...options.headers,

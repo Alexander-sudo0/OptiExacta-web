@@ -3,7 +3,7 @@
 import Link from "next/link"
 import React from "react"
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/context/auth-context'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
@@ -15,13 +15,15 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || '/dashboard'
   const { login, loginWithGoogle, isAuthenticated, isLoading: authLoading } = useAuth()
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.push('/dashboard')
+      router.push(redirectTo)
     }
-  }, [isAuthenticated, authLoading, router])
+  }, [isAuthenticated, authLoading, router, redirectTo])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,8 +32,7 @@ export default function LoginPage() {
 
     try {
       await login(username, password)
-      // Auth context will handle redirect on successful login
-      router.push('/dashboard')
+      router.push(redirectTo)
     } catch (err: any) {
       // Handle Firebase auth errors
       if (err.code === 'auth/user-not-found') {
@@ -55,7 +56,7 @@ export default function LoginPage() {
 
     try {
       await loginWithGoogle()
-      router.push('/dashboard')
+      router.push(redirectTo)
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google')
     } finally {

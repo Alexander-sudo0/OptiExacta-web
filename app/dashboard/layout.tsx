@@ -3,15 +3,80 @@
 import React from "react"
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/context/auth-context'
+import { backendRequest } from '@/lib/backend-api'
+
+type SubStatus = {
+  subscription: {
+    status: string
+    trialEndsAt: string | null
+    plan: { code: string; name: string; priceMonthly: number; priceYearly: number }
+  }
+  limits: {
+    dailyRequestLimit: number
+    monthlyRequestLimit: number
+    monthlyVideoLimit: number
+    maxImageSize: number
+    maxVideoSize: number
+    softDailyLimit: boolean
+  }
+  usage: { monthRequests: number; dayRequests: number; monthVideos: number }
+  features: Record<string, boolean>
+}
+
+type UserRole = {
+  systemRole: 'SUPER_ADMIN' | 'USER'
+  email: string
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [userRole, setUserRole] = useState<UserRole | null>(null)
+  const [subStatus, setSubStatus] = useState<SubStatus | null>(null)
   const pathname = usePathname()
-  const { logout } = useAuth()
+  const router = useRouter()
+  const { logout, idToken, user, isLoading, isAuthenticated } = useAuth()
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login')
+    }
+  }, [isAuthenticated, isLoading, router])
+
+  // Load subscription status + user role from backend using backendRequest (handles auth automatically)
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    // Get user role from /api/me
+    backendRequest('/api/me')
+      .then((data: any) => {
+        if (data) {
+          console.log('[layout] /api/me response:', data.user?.systemRole, data.user?.email)
+          setUserRole({
+            systemRole: data.user?.systemRole || 'USER',
+            email: data.user?.email || '',
+          })
+        }
+      })
+      .catch((err: any) => {
+        console.error('[layout] /api/me failed:', err)
+        setUserRole(null)
+      })
+
+    // Get subscription/plan status
+    backendRequest('/api/payments/status')
+      .then((data: any) => {
+        console.log('[layout] /api/payments/status response:', data?.subscription?.plan?.code)
+        if (data) setSubStatus(data)
+      })
+      .catch((err: any) => {
+        console.error('[layout] /api/payments/status failed:', err)
+      })
+  }, [isAuthenticated])
 
   const navItems = [
     { 
@@ -61,6 +126,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
   ]
 
+  const isAdmin = userRole?.systemRole === 'SUPER_ADMIN'
+  const planCode = subStatus?.subscription?.plan?.code || 'FREE'
+  const planName = subStatus?.subscription?.plan?.name || 'Free'
+  const subStatusLabel = subStatus?.subscription?.status || 'TRIAL'
+  const monthUsage = subStatus?.usage?.monthRequests || 0
+  const monthLimit = subStatus?.limits?.monthlyRequestLimit || 0
+  const usagePct = monthLimit > 0 ? Math.min(100, Math.round((monthUsage / monthLimit) * 100)) : 0
+  const isUnlimited = monthLimit === 0 || monthLimit === -1 || isAdmin
+
+  const planColors: Record<string, string> = {
+    FREE: 'from-gray-500 to-gray-600',
+    PRO: 'from-primary to-cyan-400',
+    ENTERPRISE: 'from-purple-500 to-pink-500',
+  }
+
+  const roleBadge = userRole?.systemRole === 'SUPER_ADMIN' ? 'SUPER ADMIN' : 'USER'
+  const roleBadgeColor = userRole?.systemRole === 'SUPER_ADMIN' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-12 h-12 rounded-xl border-4 border-border border-t-primary animate-spin" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) return null
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Sidebar */}
@@ -93,9 +186,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             </div>
 
+            {/* User Profile */}
+            <div className="px-4 pt-4 pb-2">
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-card/60 border border-border">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-bold shrink-0">
+                  {(user?.displayName || user?.email || '?').charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">{user?.displayName || user?.email || 'User'}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${roleBadgeColor}`}>{roleBadge}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Navigation */}
             <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-              {navItems.map((item, idx) => {
+              {navItems.map((item) => {
                 const isActive = pathname === item.href
                 return (
                   <Link
@@ -135,18 +243,65 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </nav>
 
             {/* Bottom Actions */}
-            <div className="p-4 border-t border-border space-y-2">
-              <div className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-xs font-semibold text-foreground">System Status</span>
+            <div className="p-4 border-t border-border space-y-3">
+              {/* Current Plan */}
+              <div className={`px-4 py-3 rounded-xl bg-gradient-to-r ${planColors[planCode] || planColors.FREE} bg-opacity-10 border border-white/10`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-white/90 uppercase tracking-wider">
+                    {isAdmin ? 'Super Admin' : `${planName} Plan`}
+                  </span>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    subStatusLabel === 'ACTIVE' ? 'bg-green-500/20 text-green-300' :
+                    subStatusLabel === 'TRIAL' ? 'bg-yellow-500/20 text-yellow-300' :
+                    'bg-red-500/20 text-red-300'
+                  }`}>{isAdmin ? 'UNLIMITED' : subStatusLabel}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">All systems operational</p>
+                {isUnlimited ? (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                      </svg>
+                      <span className="text-[10px] text-white/70">Unlimited Usage</span>
+                    </div>
+                  </div>
+                ) : monthLimit > 0 ? (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-[10px] text-white/70 mb-1">
+                      <span>{monthUsage} / {monthLimit} requests</span>
+                      <span>{usagePct}%</span>
+                    </div>
+                    <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${usagePct > 90 ? 'bg-red-400' : usagePct > 70 ? 'bg-yellow-400' : 'bg-white/80'}`}
+                        style={{ width: `${usagePct}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                {planCode === 'FREE' && !isAdmin && (
+                  <Link href="/pricing" className="block mt-2 text-[10px] text-white/80 hover:text-white font-semibold underline underline-offset-2">
+                    Upgrade Plan →
+                  </Link>
+                )}
               </div>
+
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500/10 to-blue-500/10 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-red-300 transition-all"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                  <span className="font-semibold text-sm">Admin Panel</span>
+                  <span className="ml-auto text-xs bg-red-500/20 px-2 py-0.5 rounded-full">ADMIN</span>
+                </Link>
+              )}
               
               <button
                 onClick={logout}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all group"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -187,12 +342,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-semibold flex items-center gap-2">
+            <Link
+              href={isAdmin ? '/admin' : '/pricing'}
+              className={`px-4 py-2 rounded-xl bg-gradient-to-r ${isAdmin ? 'from-red-500 to-pink-500' : planColors[planCode] || planColors.FREE} text-white text-xs font-semibold flex items-center gap-2`}
+            >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
-              Pro Plan
-            </div>
+              {isAdmin ? 'Super Admin' : `${planName} Plan`}
+            </Link>
           </div>
         </header>
 

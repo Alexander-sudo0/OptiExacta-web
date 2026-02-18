@@ -53,8 +53,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
+  // Check if we're in dev mode with skip auth
+  const isDevMode = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_SKIP_AUTH_IN_DEV === 'true'
+
   // Monitor auth state changes
   useEffect(() => {
+    // In dev mode with skip auth, set a fake authenticated user
+    if (isDevMode) {
+      console.log('[auth-context] DEV MODE: Setting dev user and token');
+      setUser({
+        uid: 'dev-user',
+        email: 'dev@test.com',
+        displayName: 'Alexandra',
+        photoURL: null,
+      })
+      setIdToken('dev-token')
+      setIsLoading(false)
+      return
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
