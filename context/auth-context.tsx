@@ -59,8 +59,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Monitor auth state changes
   useEffect(() => {
-    // Check for redirect result from Google Sign-In
-    const checkRedirectResult = async () => {
+    let unsubscribe: (() => void) | undefined
+
+    const initAuth = async () => {
+      // In dev mode with skip auth, set a fake authenticated user
+      if (isDevMode) {
+        console.log('[auth-context] DEV MODE: Setting dev user and token');
+        setUser({
+          uid: 'dev-user',
+          email: 'dev@test.com',
+          displayName: 'Alexandra',
+          photoURL: null,
+        })
+        setIdToken('dev-token')
+        setIsLoading(false)
+        return
+      }
+
+      // Check for redirect result from Google Sign-In FIRST
       try {
         console.log('[Auth] Checking redirect result...')
         const result = await getRedirectResult(auth)
@@ -77,57 +93,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error('[Auth] Redirect result error:', error)
       }
-    }
 
-    checkRedirectResult()
+      // Now set up the auth state listener
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        try {
+          if (firebaseUser) {
+            // User is signed in
+            console.log('[Auth] User signed in:', firebaseUser.email)
+            setFirebaseUser(firebaseUser)
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
+            })
 
-    // In dev mode with skip auth, set a fake authenticated user
-    if (isDevMode) {
-      console.log('[auth-context] DEV MODE: Setting dev user and token');
-      setUser({
-        uid: 'dev-user',
-        email: 'dev@test.com',
-        displayName: 'Alexandra',
-        photoURL: null,
-      })
-      setIdToken('dev-token')
-      setIsLoading(false)
-      return
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (firebaseUser) {
-          // User is signed in
-          console.log('[Auth] User signed in:', firebaseUser.email)
-          setFirebaseUser(firebaseUser)
-          setUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
-          })
-
-          // Get ID token for API calls and initialize server session
-          const token = await firebaseUser.getIdToken()
-          setIdToken(token)
-          await syncSession(token)
-          console.log('[Auth] User session established')
-        } else {
-          // User is signed out
-          console.log('[Auth] User signed out')
-          setFirebaseUser(null)
-          setUser(null)
-          setIdToken(null)
+            // Get ID token for API calls and initialize server session
+            const token = await firebaseUser.getIdToken()
+            setIdToken(token)
+            await syncSession(token)
+            console.log('[Auth] User session established')
+          } else {
+            // User is signed out
+            console.log('[Auth] User signed out')
+            setFirebaseUser(null)
+            setUser(null)
+            setIdToken(null)
+          }
+        } catch (error) {
+          console.error('Auth state change error:', error)
+        } finally {
+          setIsLoading(false)
         }
-      } catch (error) {
-        console.error('Auth state change error:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    })
+      })
+    }
 
-    return () => unsubscribe()
+    initAuth()
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe()
+      }
+    }
   }, [])
 
   const login = async (email: string, password: string) => {
