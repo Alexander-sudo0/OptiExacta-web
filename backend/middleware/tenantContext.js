@@ -80,7 +80,7 @@ function attachTenantContext(prisma) {
       })
 
       await prisma.tenantUser.create({
-        data: { tenantId: tenant.id, userId: user.id, role: 'ADMIN' },
+        data: { tenantId: tenant.id, userId: user.id, role: 'MEMBER' },
       })
 
       // Re-fetch with tenant included
