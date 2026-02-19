@@ -750,7 +750,7 @@ export default function VideoProcessingPage() {
                                 </svg>
                                 <span className="text-xs text-green-500 font-medium">Face detected</span>
                               </div>
-                            )}}
+                            )}
 
                             {photo.error && (
                               <div className="space-y-2">
