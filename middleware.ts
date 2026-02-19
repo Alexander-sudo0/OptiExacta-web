@@ -15,28 +15,20 @@ export function middleware(request: NextRequest) {
   // In production, you would verify the token with Firebase Admin SDK
   const firebaseToken = request.cookies.get('firebase_token')?.value
   
-  // Allow processing of OAuth redirects (from Google, etc.)
-  // Firebase Auth uses URL fragments and state parameters
-  const searchParams = request.nextUrl.searchParams
-  const hasOAuthState = searchParams.has('state') || searchParams.has('code') || searchParams.has('oobCode')
+  // Debug logging
+  console.log('[Middleware]', {
+    pathname,
+    hasToken: !!firebaseToken,
+    cookies: request.cookies.getAll().map(c => c.name)
+  })
   
   // Determine if user is authenticated
   // In a real scenario, you'd verify the token against Firebase Admin SDK
   const isAuthenticated = !!firebaseToken
   
-  console.log('[Middleware]', {
-    pathname,
-    isAuthenticated,
-    hasToken: !!firebaseToken,
-    hasOAuthState,
-    cookies: request.cookies.getAll().map(c => c.name)
-  })
-  
   // For protected routes, redirect to login if not authenticated
-  // BUT allow OAuth redirect processing
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
-    if (!isAuthenticated && !hasOAuthState) {
-      console.log('[Middleware] Redirecting to login - protected route, not authenticated')
+    if (!isAuthenticated) {
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(loginUrl)
@@ -44,9 +36,7 @@ export function middleware(request: NextRequest) {
   }
 
   // For login/signup pages, redirect to dashboard if already authenticated
-  // BUT don't redirect if processing OAuth callback
-  if ((pathname === '/login' || pathname === '/signup') && isAuthenticated && !hasOAuthState) {
-    console.log('[Middleware] Redirecting to dashboard - already authenticated')
+  if ((pathname === '/login' || pathname === '/signup') && isAuthenticated) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
