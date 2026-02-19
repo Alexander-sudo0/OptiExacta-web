@@ -21,3 +21,5 @@ backend/monitor-*.js
 backend/server.log
 backend/nohup.out
 
+logs/
+backend/logs/
