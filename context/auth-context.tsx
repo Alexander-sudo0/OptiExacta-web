@@ -8,7 +8,8 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   updateProfile,
 } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
@@ -58,6 +59,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Monitor auth state changes
   useEffect(() => {
+    // Check for redirect result from Google Sign-In
+    const checkRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth)
+        if (result?.user) {
+          const token = await result.user.getIdToken()
+          setIdToken(token)
+          await syncSession(token)
+        }
+      } catch (error) {
+        console.error('Redirect result error:', error)
+      }
+    }
+
+    checkRedirectResult()
+
     // In dev mode with skip auth, set a fake authenticated user
     if (isDevMode) {
       console.log('[auth-context] DEV MODE: Setting dev user and token');
@@ -144,15 +161,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true)
     try {
       const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      const token = await result.user.getIdToken()
-      setIdToken(token)
-      await syncSession(token)
+      // Use redirect instead of popup for better reliability
+      await signInWithRedirect(auth, provider)
+      // Don't set loading to false - the page will redirect and reload
     } catch (error) {
       console.error('Google login error:', error)
-      throw error
-    } finally {
       setIsLoading(false)
+      throw error
     }
   }
 
