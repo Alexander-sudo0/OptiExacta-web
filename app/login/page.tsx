@@ -20,7 +20,9 @@ export default function LoginPage() {
   const { login, loginWithGoogle, isAuthenticated, isLoading: authLoading } = useAuth()
 
   useEffect(() => {
+    console.log('[Login] Auth state:', { isAuthenticated, authLoading, redirectTo })
     if (!authLoading && isAuthenticated) {
+      console.log('[Login] Redirecting to:', redirectTo)
       router.push(redirectTo)
     }
   }, [isAuthenticated, authLoading, router, redirectTo])

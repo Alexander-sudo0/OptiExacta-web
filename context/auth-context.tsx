@@ -62,14 +62,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for redirect result from Google Sign-In
     const checkRedirectResult = async () => {
       try {
+        console.log('[Auth] Checking redirect result...')
         const result = await getRedirectResult(auth)
         if (result?.user) {
+          console.log('[Auth] Got redirect result, user:', result.user.email)
           const token = await result.user.getIdToken()
+          console.log('[Auth] Got token, syncing session...')
           setIdToken(token)
           await syncSession(token)
+          console.log('[Auth] Session synced successfully')
+        } else {
+          console.log('[Auth] No redirect result')
         }
       } catch (error) {
-        console.error('Redirect result error:', error)
+        console.error('[Auth] Redirect result error:', error)
       }
     }
 
@@ -93,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         if (firebaseUser) {
           // User is signed in
+          console.log('[Auth] User signed in:', firebaseUser.email)
           setFirebaseUser(firebaseUser)
           setUser({
             uid: firebaseUser.uid,
@@ -105,8 +112,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const token = await firebaseUser.getIdToken()
           setIdToken(token)
           await syncSession(token)
+          console.log('[Auth] User session established')
         } else {
           // User is signed out
+          console.log('[Auth] User signed out')
           setFirebaseUser(null)
           setUser(null)
           setIdToken(null)

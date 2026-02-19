@@ -13,9 +13,11 @@ export async function POST(request: NextRequest) {
     }
 
     const response = NextResponse.json({ success: true })
+    // Use secure cookies only when actually using HTTPS
+    const isHttps = request.url.startsWith('https://')
     response.cookies.set('firebase_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps, // Only secure on HTTPS
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60,
@@ -31,11 +33,12 @@ export async function POST(request: NextRequest) {
  * DELETE /api/auth/session
  * Clear Firebase token cookie
  */
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   const response = NextResponse.json({ success: true })
+  const isHttps = request.url.startsWith('https://')
   response.cookies.set('firebase_token', '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isHttps,
     sameSite: 'lax',
     path: '/',
     maxAge: 0,
