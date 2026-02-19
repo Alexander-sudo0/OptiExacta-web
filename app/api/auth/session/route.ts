@@ -20,13 +20,11 @@ export async function POST(request: NextRequest) {
       secure: isHttps, // Only secure on HTTPS
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days instead of 1 hour
+      maxAge: 60 * 60,
     })
 
-    console.log('[Session API] Cookie set for token:', token.substring(0, 20) + '...')
     return response
   } catch (error) {
-    console.error('[Session API] Error:', error)
     return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
   }
 }

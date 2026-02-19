@@ -1,21 +1,18 @@
 nohup: ignoring input
-node:events:502
-      throw er; // Unhandled 'error' event
-      ^
-
-Error: listen EADDRINUSE: address already in use 0.0.0.0:3010
-    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
-    at listenInCluster (node:net:1965:12)
-    at doListen (node:net:2139:7)
-    at process.processTicksAndRejections (node:internal/process/task_queues:83:21)
-Emitted 'error' event on Server instance at:
-    at emitErrorNT (node:net:1944:8)
-    at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
-  code: 'EADDRINUSE',
-  errno: -98,
-  syscall: 'listen',
-  address: '0.0.0.0',
-  port: 3010
-}
-
-Node.js v20.20.0
+[dotenv@17.2.4] injecting env (15) from .env -- tip: ⚙️  override existing env vars with { override: true }
+Backend listening on 3011
+[abuse-detection] Scanner started (interval: 300s)
+[abuse-detection] Scan complete. 0 potential flags evaluated.
+📸 Face detection request received: IMG_20260217_140052_523.webp
+🔍 Detecting faces in image...
+✅ Detection result: 1 faces found
+📸 Face detection request received: Screenshot_2026-02-12-14-58-02-59_99c04817c0de5652397fc8b56c3b3817.jpg
+🔍 Detecting faces in image...
+✅ Detection result: 1 faces found
+[abuse-detection] Scan complete. 0 potential flags evaluated.
+📸 Face detection request received: IMG_20260217_140052_523.webp
+🔍 Detecting faces in image...
+✅ Detection result: 1 faces found
+📸 Face detection request received: Screenshot_2026-02-12-10-00-02-83_6012fa4d4ddec268fc5c7112cbb265e7.jpg
+🔍 Detecting faces in image...
+✅ Detection result: 4 faces found

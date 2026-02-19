@@ -149,13 +149,20 @@ function enforceUsage(prisma, options = {}) {
       const batchId = req.headers['x-batch-id']
       if (batchId) {
         const batchKey = `batch:${tenant.id}:${batchId}`
-        const alreadyCounted = await redis.get(batchKey)
-        if (alreadyCounted) {
-          // This batch was already counted — skip usage increment
-          return next()
+        try {
+          const alreadyCounted = await redis.get(batchKey)
+          if (alreadyCounted) {
+            // This batch was already counted — skip usage increment
+            console.log('[usageLimits] Batch dedup: skipping', batchId)
+            return next()
+          }
+          // Mark this batch as counted (TTL 1 hour)
+          await redis.set(batchKey, '1', { EX: TTL_BATCH })
+          console.log('[usageLimits] Batch dedup: counted', batchId)
+        } catch (batchErr) {
+          // If batch Redis fails, log and continue (don't block the request)
+          console.error('[usageLimits] Batch dedup error (continuing):', batchErr.message)
         }
-        // Mark this batch as counted (TTL 1 hour)
-        await redis.set(batchKey, '1', { EX: TTL_BATCH })
       }
 
       // ────────────────────────────────────────────────────────────

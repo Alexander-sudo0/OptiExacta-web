@@ -766,7 +766,7 @@ export default function VideoProcessingPage() {
                               </div>
                             )}
 
-                            {!photo.result && !photo.isSearching && !photo.error && (
+                            {!photo.result && !photo.isSearching && !photo.error && photo.matchScore === undefined && (
                               <button
                                 onClick={() => handleSearchPhoto(photo.id)}
                                 className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90"
@@ -775,7 +775,7 @@ export default function VideoProcessingPage() {
                               </button>
                             )}
 
-                            {photo.result && photo.matchScore !== null && photo.isMatch !== null && (
+                            {photo.matchScore !== null && photo.matchScore !== undefined && photo.isMatch !== null && (
                               <div className={`mt-2 p-2 rounded-lg border ${
                                 photo.isMatch
                                   ? 'border-green-500/40 bg-green-500/10'
@@ -784,7 +784,7 @@ export default function VideoProcessingPage() {
                                   : 'border-red-500/40 bg-red-500/10'
                               }`}>
                                 <div className="flex items-center gap-2">
-                                  {photo.result.thumbnail && (
+                                  {photo.result?.thumbnail && (
                                     <img
                                       src={photo.result.thumbnail}
                                       alt="Match"
@@ -797,7 +797,7 @@ export default function VideoProcessingPage() {
                                   )}
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-semibold text-foreground">
-                                      {(photo.matchScore * 100).toFixed(1)}% Match
+                                      {photo.result ? `${(photo.matchScore * 100).toFixed(1)}% Match` : 'No match found'}
                                     </p>
                                     <p className={`text-xs font-bold ${
                                       photo.isMatch
