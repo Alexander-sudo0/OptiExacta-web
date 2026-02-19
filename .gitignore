@@ -10,3 +10,14 @@ node_modules/
 .next/
 .env*.local
 .DS_Store
+# Test & debug scripts
+backend/*-users.sh
+backend/*-users.js
+backend/test-*.js
+backend/fix-*.js
+backend/cleanup-*.js
+backend/update-*.js
+backend/monitor-*.js
+backend/server.log
+backend/nohup.out
+
