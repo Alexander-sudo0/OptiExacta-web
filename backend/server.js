@@ -127,8 +127,8 @@ app.get('/db/health', async (req, res) => {
 // FAILED LOGIN MONITORING (called by frontend on failed Firebase auth)
 // ============================================================================
 
-const FAILED_LOGIN_THRESHOLD = 10 // abuse flag after this many failures
-const FAILED_LOGIN_LOCKOUT = 20   // temporary IP lockout after this many
+const FAILED_LOGIN_THRESHOLD = 25 // abuse flag after this many failures
+const FAILED_LOGIN_LOCKOUT = 50   // temporary IP lockout after this many (per day)
 
 app.post('/api/auth/login-failed', async (req, res) => {
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || '0.0.0.0'
@@ -173,9 +173,18 @@ app.get('/api/auth/login-status', async (req, res) => {
     const redis = await getRedisClient()
     const dayKey = `failed-login:${ip}:${new Date().toISOString().slice(0, 10)}`
     const count = Number(await redis.get(dayKey)) || 0
-    res.json({ locked: count >= FAILED_LOGIN_LOCKOUT, attempts: count })
+    const locked = count >= FAILED_LOGIN_LOCKOUT
+    
+    res.json({ 
+      locked, 
+      attempts: count,
+      maxAttempts: FAILED_LOGIN_LOCKOUT,
+      lockMessage: locked 
+        ? `Your IP has exceeded ${FAILED_LOGIN_LOCKOUT} failed login attempts today. Please try again tomorrow or contact support.`
+        : `${Math.max(0, FAILED_LOGIN_LOCKOUT - count)} attempts remaining before temporary lockout`
+    })
   } catch {
-    res.json({ locked: false, attempts: 0 })
+    res.json({ locked: false, attempts: 0, maxAttempts: FAILED_LOGIN_LOCKOUT })
   }
 })
 
@@ -210,6 +219,34 @@ app.post('/api/dev/reset-rate-limits', verifyAuth, attachTenantContext(prisma), 
   } catch (error) {
     console.error('Reset rate limits error:', error.message)
     res.status(500).json({ error: 'Failed to reset rate limits' })
+  }
+})
+
+// Admin: Reset login lockout for a specific IP (support use case)
+app.post('/api/admin/reset-login-lockout', requireSuperAdmin(prisma), async (req, res) => {
+  try {
+    const { ip } = req.body || {}
+    
+    if (!ip) {
+      return res.status(400).json({ error: 'IP address required' })
+    }
+
+    const redis = await getRedisClient()
+    const today = new Date().toISOString().slice(0, 10)
+    const dayKey = `failed-login:${ip}:${today}`
+    
+    await redis.del(dayKey)
+    
+    console.log(`[Admin] Reset login lockout for IP: ${ip}`)
+    res.json({ 
+      success: true, 
+      message: `Login lockout cleared for IP ${ip}`,
+      ip,
+      clearedAt: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error('Reset login lockout error:', error.message)
+    res.status(500).json({ error: 'Failed to reset login lockout' })
   }
 })
 
