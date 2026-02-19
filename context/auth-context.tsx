@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   updateProfile,
@@ -177,9 +178,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true)
     try {
       const provider = new GoogleAuthProvider()
-      // Use redirect instead of popup for better reliability
-      await signInWithRedirect(auth, provider)
-      // Don't set loading to false - the page will redirect and reload
+      // Try popup first (works without third-party cookies)
+      try {
+        console.log('[Auth] Trying signInWithPopup...')
+        const result = await signInWithPopup(auth, provider)
+        console.log('[Auth] Popup sign-in successful:', result.user.email)
+        const token = await result.user.getIdToken()
+        setIdToken(token)
+        setUser({
+          uid: result.user.uid,
+          email: result.user.email,
+          displayName: result.user.displayName,
+          photoURL: result.user.photoURL,
+        })
+        setFirebaseUser(result.user)
+        await syncSession(token)
+        console.log('[Auth] Session synced after popup')
+      } catch (popupError: any) {
+        console.warn('[Auth] Popup failed:', popupError.code, popupError.message)
+        // If popup blocked or closed, fall back to redirect
+        if (
+          popupError.code === 'auth/popup-blocked' ||
+          popupError.code === 'auth/popup-closed-by-user' ||
+          popupError.code === 'auth/cancelled-popup-request'
+        ) {
+          console.log('[Auth] Falling back to signInWithRedirect...')
+          await signInWithRedirect(auth, provider)
+          return // Page will redirect
+        }
+        throw popupError
+      }
     } catch (error) {
       console.error('Google login error:', error)
       setIsLoading(false)
