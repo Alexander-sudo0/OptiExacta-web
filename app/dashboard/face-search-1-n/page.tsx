@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { validateImageFile, validateImageFiles, readFileAsDataUrl, loadImageMeta, normalizeBbox, getConfidenceLevel, MAX_IMAGE_BYTES } from '@/lib/upload-utils'
-import { detectFace, verifyFaces, generateShareToken, storeFaceSearchResult, type OneToNResult, type OneToNMatch } from '@/lib/backend-api'
+import { detectFace, verifyFaces, generateBatchId, generateShareToken, storeFaceSearchResult, type OneToNResult, type OneToNMatch } from '@/lib/backend-api'
 import FaceImagePreview, { FaceThumbnail } from '@/components/face-image-preview'
 
 interface FaceState {
@@ -258,12 +258,15 @@ export default function FaceSearch1ToNPage() {
     setError(null)
     setShareToken(null)
 
+    // Single batch ID for the entire search operation (counts as 1 API call)
+    const batchId = generateBatchId()
+
     try {
       // Detect faces in all target images
       const targetResults = await Promise.all(
         targets.map(async (t) => {
           try {
-            const result = await detectFace(t.file)
+            const result = await detectFace(t.file, batchId)
             const faces = result.objects?.face || []
             return {
               id: t.id,
@@ -290,7 +293,7 @@ export default function FaceSearch1ToNPage() {
         let best: { faceId: string; bbox: { left: number; top: number; right: number; bottom: number }; confidence: number } | null = null
         for (const face of target.faces) {
           try {
-            const verifyResult = await verifyFaces(source.faceId!, face.faceId)
+            const verifyResult = await verifyFaces(source.faceId!, face.faceId, batchId)
             if (!best || verifyResult.confidence > best.confidence) {
               best = {
                 faceId: face.faceId,

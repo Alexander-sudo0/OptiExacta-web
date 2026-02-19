@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { validateImageFile, validateImageFiles, readFileAsDataUrl, getConfidenceLevel, MAX_IMAGE_BYTES } from '@/lib/upload-utils'
-import { detectFace, verifyFaces, generateShareToken, storeFaceSearchResult, type NToNResult, type NToNMatch } from '@/lib/backend-api'
+import { detectFace, verifyFaces, generateBatchId, generateShareToken, storeFaceSearchResult, type NToNResult, type NToNMatch } from '@/lib/backend-api'
 import FaceImagePreview, { FaceThumbnail } from '@/components/face-image-preview'
 
 interface ImageItem {
@@ -155,13 +155,16 @@ export default function FaceSearchNNPage() {
     setError(null)
     setShareToken(null)
 
+    // Single batch ID for the entire compare operation (counts as 1 API call)
+    const batchId = generateBatchId()
+
     try {
       // Detect faces in both sets (all faces per image)
       const detectSet = async (items: ImageItem[]) => {
         return Promise.all(
           items.map(async (item) => {
             try {
-              const result = await detectFace(item.file)
+              const result = await detectFace(item.file, batchId)
               const faces = result.objects?.face || []
               return {
                 id: item.id,
@@ -191,7 +194,7 @@ export default function FaceSearchNNPage() {
           for (const faceA of imageA.faces) {
             for (const faceB of imageB.faces) {
               try {
-                const verifyResult = await verifyFaces(faceA.faceId, faceB.faceId)
+                const verifyResult = await verifyFaces(faceA.faceId, faceB.faceId, batchId)
                 const confidence = verifyResult.confidence
                 comparisons.push({
                   setAIndex: setA.findIndex(i => i.id === imageA.id),

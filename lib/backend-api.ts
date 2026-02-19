@@ -11,6 +11,7 @@ interface RequestOptions {
   method?: string;
   body?: FormData | string;
   headers?: Record<string, string>;
+  batchId?: string; // When set, all requests with the same batchId count as 1 API call
 }
 
 /**
@@ -51,6 +52,11 @@ export async function backendRequest<T = any>(
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+
+  // Batch ID for usage dedup — multiple API calls count as 1 user action
+  if (options.batchId) {
+    headers['X-Batch-Id'] = options.batchId;
+  }
   
   // Don't set Content-Type for FormData (browser will set with boundary)
   if (options.body && typeof options.body === 'string') {
@@ -72,13 +78,24 @@ export async function backendRequest<T = any>(
 }
 
 // ============================================================================
+// Batch ID Helper
+// ============================================================================
+
+/**
+ * Generate a unique batch ID for grouping multiple API calls as one user action
+ */
+export function generateBatchId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+}
+
+// ============================================================================
 // FRS Proxy Endpoints
 // ============================================================================
 
 /**
  * Detect faces in an image via our backend proxy
  */
-export async function detectFace(file: File): Promise<{
+export async function detectFace(file: File, batchId?: string): Promise<{
   objects?: { 
     face?: Array<{
       id: string;
@@ -93,6 +110,7 @@ export async function detectFace(file: File): Promise<{
   return backendRequest('/api/frs/detect', {
     method: 'POST',
     body: formData,
+    batchId,
   });
 }
 
@@ -101,14 +119,17 @@ export async function detectFace(file: File): Promise<{
  */
 export async function verifyFaces(
   faceId1: string,
-  faceId2: string
+  faceId2: string,
+  batchId?: string
 ): Promise<{ confidence: number }> {
   const formatId = (id: string) => 
     id.startsWith('detection:') || id.startsWith('faceevent:') 
       ? id 
       : `detection:${id}`;
 
-  return backendRequest(`/api/frs/verify?object1=${encodeURIComponent(formatId(faceId1))}&object2=${encodeURIComponent(formatId(faceId2))}`);
+  return backendRequest(`/api/frs/verify?object1=${encodeURIComponent(formatId(faceId1))}&object2=${encodeURIComponent(formatId(faceId2))}`, {
+    batchId,
+  });
 }
 
 // ============================================================================
@@ -453,26 +474,30 @@ export async function createVideoProcessingEntry(params: {
   camera_group?: number
   name?: string
   stream_settings?: any
-}): Promise<VideoProcessingStatus> {
+}, batchId?: string): Promise<VideoProcessingStatus> {
   return backendRequest('/api/video-processing/videos', {
     method: 'POST',
     body: JSON.stringify(params),
+    batchId,
   })
 }
 
 export async function patchVideoProcessingEntry(
   videoId: number | string,
-  stream_settings: any
+  stream_settings: any,
+  batchId?: string
 ): Promise<VideoProcessingStatus> {
   return backendRequest(`/api/video-processing/videos/${videoId}`, {
     method: 'PATCH',
     body: JSON.stringify({ stream_settings }),
+    batchId,
   })
 }
 
 export async function uploadVideoProcessingSource(
   videoId: number | string,
-  file: File
+  file: File,
+  batchId?: string
 ): Promise<VideoProcessingStatus> {
   const formData = new FormData()
   formData.append('file', file)
@@ -480,17 +505,19 @@ export async function uploadVideoProcessingSource(
   return backendRequest(`/api/video-processing/videos/${videoId}/upload/source_file`, {
     method: 'PUT',
     body: formData,
+    batchId,
   })
 }
 
-export async function startVideoProcessing(videoId: number | string): Promise<VideoProcessingStatus> {
+export async function startVideoProcessing(videoId: number | string, batchId?: string): Promise<VideoProcessingStatus> {
   return backendRequest(`/api/video-processing/videos/${videoId}/process`, {
     method: 'POST',
+    batchId,
   })
 }
 
-export async function getVideoProcessingStatus(videoId: number | string): Promise<VideoProcessingStatus> {
-  return backendRequest(`/api/video-processing/videos/${videoId}`)
+export async function getVideoProcessingStatus(videoId: number | string, batchId?: string): Promise<VideoProcessingStatus> {
+  return backendRequest(`/api/video-processing/videos/${videoId}`, { batchId })
 }
 
 export interface VideoFaceResult {
@@ -516,22 +543,22 @@ export interface VideoEventsListResponse {
   results: VideoFaceResult[]
 }
 
-export async function listVideoFaces(videoId: number | string): Promise<VideoFacesListResponse> {
-  return backendRequest(`/api/video-processing/clusters?video_archive=${encodeURIComponent(String(videoId))}`)
+export async function listVideoFaces(videoId: number | string, batchId?: string): Promise<VideoFacesListResponse> {
+  return backendRequest(`/api/video-processing/clusters?video_archive=${encodeURIComponent(String(videoId))}`, { batchId })
 }
 
-export async function listVideoEvents(videoId: number | string, limit = 10): Promise<VideoEventsListResponse> {
+export async function listVideoEvents(videoId: number | string, limit = 10, batchId?: string): Promise<VideoEventsListResponse> {
   const params = new URLSearchParams()
   params.set('video_archive', String(videoId))
   params.set('limit', String(limit))
 
-  return backendRequest(`/api/video-processing/events?${params.toString()}`)
+  return backendRequest(`/api/video-processing/events?${params.toString()}`, { batchId })
 }
 
 export async function searchVideoFaces(
   videoId: number | string,
   file: File,
-  options: { threshold?: number; limit?: number } = {}
+  options: { threshold?: number; limit?: number; batchId?: string } = {}
 ): Promise<VideoFacesSearchResponse> {
   const formData = new FormData()
   formData.append('file', file)
@@ -547,5 +574,6 @@ export async function searchVideoFaces(
   return backendRequest(`/api/video-processing/faces/search?${params.toString()}`, {
     method: 'POST',
     body: formData,
+    batchId: options.batchId,
   })
 }

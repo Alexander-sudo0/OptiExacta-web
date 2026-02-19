@@ -44,6 +44,7 @@ function videoMonthKey(tenantId) {
 
 const TTL_35_DAYS = 35 * 24 * 60 * 60
 const TTL_48_HOURS = 48 * 60 * 60
+const TTL_BATCH = 60 * 60 // 1 hour TTL for batch dedup keys
 
 // Whitelist of valid plan boolean columns to prevent injection
 const VALID_ALLOW_COLUMNS = new Set([
@@ -138,6 +139,25 @@ function enforceUsage(prisma, options = {}) {
     }
 
     try {
+      // ────────────────────────────────────────────────────────────
+      // Batch dedup: If X-Batch-Id header is present, only count
+      // the first request in the batch. This allows the frontend
+      // to make multiple API calls for a single user action
+      // (e.g., video processing, 1:N search) while only consuming
+      // 1 API call from the user's quota.
+      // ────────────────────────────────────────────────────────────
+      const batchId = req.headers['x-batch-id']
+      if (batchId) {
+        const batchKey = `batch:${tenant.id}:${batchId}`
+        const alreadyCounted = await redis.get(batchKey)
+        if (alreadyCounted) {
+          // This batch was already counted — skip usage increment
+          return next()
+        }
+        // Mark this batch as counted (TTL 1 hour)
+        await redis.set(batchKey, '1', { EX: TTL_BATCH })
+      }
+
       // ────────────────────────────────────────────────────────────
       // 3. Daily usage limit
       // ────────────────────────────────────────────────────────────

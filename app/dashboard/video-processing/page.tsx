@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   createVideoProcessingEntry,
   detectFace,
+  generateBatchId,
   getVideoProcessingStatus,
   listVideoEvents,
   patchVideoProcessingEntry,
@@ -95,14 +96,14 @@ export default function VideoProcessingPage() {
     }
   }, [status?.finished, videoId])
 
-  const pollStatus = (id: number) => {
+  const pollStatus = (id: number, batchId?: string) => {
     if (pollRef.current) {
       clearInterval(pollRef.current)
     }
 
     pollRef.current = setInterval(async () => {
       try {
-        const nextStatus = await getVideoProcessingStatus(id)
+        const nextStatus = await getVideoProcessingStatus(id, batchId)
         setStatus(nextStatus)
 
         if (nextStatus.error) {
@@ -150,6 +151,9 @@ export default function VideoProcessingPage() {
     setProcessingProgress(5)
     setError(null)
 
+    // Generate a single batch ID for the entire process operation (counts as 1 API call)
+    const batchId = generateBatchId()
+
     try {
       const created = await createVideoProcessingEntry({
         camera_group: cameraGroup,
@@ -161,7 +165,7 @@ export default function VideoProcessingPage() {
             },
           },
         },
-      })
+      }, batchId)
 
       setVideoId(created.id)
       setStatus(created)
@@ -173,16 +177,16 @@ export default function VideoProcessingPage() {
             overall_only: true,
           },
         },
-      })
+      }, batchId)
 
-      await uploadVideoProcessingSource(created.id, videoFile)
+      await uploadVideoProcessingSource(created.id, videoFile, batchId)
       setProcessingProgress(35)
 
-      const started = await startVideoProcessing(created.id)
+      const started = await startVideoProcessing(created.id, batchId)
       setStatus(started)
       setProcessingProgress(45)
 
-      pollStatus(created.id)
+      pollStatus(created.id, batchId)
     } catch (err: any) {
       setError(err.message || 'Failed to start video processing')
       setIsProcessing(false)
@@ -207,6 +211,67 @@ export default function VideoProcessingPage() {
     }))
 
     setQueryPhotos((prev) => [...prev, ...newPhotos])
+
+    // Auto-detect faces on upload (like 1:1 page)
+    newPhotos.forEach((photo) => {
+      handleDetectFace(photo.id, photo.file)
+    })
+  }
+
+  // Auto-detect face in uploaded query photo (similar to 1:1 page)
+  const handleDetectFace = async (photoId: string, file: File) => {
+    setQueryPhotos((prev) =>
+      prev.map((p) =>
+        p.id === photoId
+          ? { ...p, isSearching: true, error: null }
+          : p
+      )
+    )
+
+    try {
+      const detectResult = await detectFace(file)
+      const faces = detectResult.objects?.face || []
+
+      if (faces.length === 0) {
+        setQueryPhotos((prev) =>
+          prev.map((p) =>
+            p.id === photoId
+              ? { ...p, isSearching: false, faceDetected: false, faceCount: 0, error: 'No face detected' }
+              : p
+          )
+        )
+      } else if (faces.length > 1) {
+        setQueryPhotos((prev) =>
+          prev.map((p) =>
+            p.id === photoId
+              ? {
+                  ...p,
+                  isSearching: false,
+                  faceDetected: false,
+                  faceCount: faces.length,
+                  error: `Multiple faces detected (${faces.length}). Please upload a photo with only one face.`,
+                }
+              : p
+          )
+        )
+      } else {
+        setQueryPhotos((prev) =>
+          prev.map((p) =>
+            p.id === photoId
+              ? { ...p, isSearching: false, faceDetected: true, faceCount: 1 }
+              : p
+          )
+        )
+      }
+    } catch (err: any) {
+      setQueryPhotos((prev) =>
+        prev.map((p) =>
+          p.id === photoId
+            ? { ...p, isSearching: false, error: err.message || 'Face detection failed' }
+            : p
+        )
+      )
+    }
   }
 
   const handleRemovePhoto = (id: string) => {
@@ -228,6 +293,9 @@ export default function VideoProcessingPage() {
     const photo = queryPhotos.find((p) => p.id === photoId)
     if (!photo) return
 
+    // Generate a single batch ID for this search operation (detect + search = 1 API call)
+    const batchId = generateBatchId()
+
     // Update photo state to searching
     setQueryPhotos((prev) =>
       prev.map((p) =>
@@ -239,7 +307,7 @@ export default function VideoProcessingPage() {
 
     try {
       // Step 1: Detect faces in the query photo
-      const detectResult = await detectFace(photo.file)
+      const detectResult = await detectFace(photo.file, batchId)
       const faces = detectResult.objects?.face || []
 
       if (faces.length === 0) {
@@ -274,6 +342,7 @@ export default function VideoProcessingPage() {
       const searchResult = await searchVideoFaces(videoId, photo.file, {
         threshold: searchThreshold,
         limit: 1,
+        batchId,
       })
 
       const bestResult = searchResult.results?.[0] || null
@@ -663,15 +732,25 @@ export default function VideoProcessingPage() {
                               </button>
                             </div>
 
-                            {photo.isSearching && (
+                            {photo.isSearching && !photo.result && (
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                                 </svg>
-                                Searching...
+                                {photo.faceDetected === null ? 'Detecting face...' : 'Searching...'}
                               </div>
                             )}
+
+                            {/* Face detection status (shown after auto-detect) */}
+                            {!photo.isSearching && photo.faceDetected === true && !photo.result && !photo.error && (
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <svg className="w-3.5 h-3.5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-xs text-green-500 font-medium">Face detected</span>
+                              </div>
+                            )}}
 
                             {photo.error && (
                               <div className="space-y-2">
