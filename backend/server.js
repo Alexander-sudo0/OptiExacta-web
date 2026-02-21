@@ -13,6 +13,9 @@ const { requireSuperAdmin } = require('./middleware/adminAuth')
 const { auditMiddleware } = require('./lib/audit')
 const { createAdminRouter } = require('./routes/admin')
 const { createPaymentRouter } = require('./routes/payments')
+const { createApiV1Router } = require('./routes/api-v1')
+const { createApiKeyRouter } = require('./routes/api-keys')
+const { apiKeyAuth } = require('./middleware/apiKeyAuth')
 const { startAbuseScanner } = require('./lib/abuse-detection')
 const frsClient = require('./lib/frs-client')
 const shareTokens = require('./lib/share-tokens')
@@ -1379,6 +1382,29 @@ app.delete(
       res.status(500).json({ error: 'Failed to revoke token' });
     }
   }
+)
+
+// ============================================================================
+// API KEY MANAGEMENT ROUTES (Firebase-authenticated — dashboard use)
+// ============================================================================
+
+app.use(
+  '/api/api-keys',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 30 }),
+  createApiKeyRouter(prisma)
+)
+
+// ============================================================================
+// PUBLIC API v1 ROUTES (API key authenticated — programmatic access)
+// ============================================================================
+
+app.use(
+  '/api/v1',
+  apiKeyAuth(prisma),
+  auditMiddleware(prisma),
+  createApiV1Router(prisma)
 )
 
 // ============================================================================

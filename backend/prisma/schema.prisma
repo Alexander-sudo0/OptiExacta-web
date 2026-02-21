@@ -83,6 +83,8 @@ enum AuditAction {
   TRIAL_EXTEND
   USAGE_RESET
   API_CALL
+  API_KEY_CREATED
+  API_KEY_REVOKED
   RATE_LIMIT_HIT
   ABUSE_FLAG
   ADMIN_ACCESS
@@ -121,6 +123,7 @@ model Plan {
   allowFaceSearchNToN     Boolean  @default(false)
   allowVideoProcessing    Boolean  @default(false)
   maxVideoSize            Int      @default(100) // Maximum video size in MB
+  maxApiKeys              Int      @default(1)   // Max active API keys (FREE=1, PRO=5, ENTERPRISE=10)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
   tenants                 Tenant[] // All organizations on this plan
@@ -146,6 +149,7 @@ model Tenant {
   shareTokens        ShareToken[] // Shared result links
   abuseFlags         AbuseFlag[] // Abuse detection flags
   auditLogs          AuditLog[] // Admin action logs for this tenant
+  apiKeys            ApiKey[] // Public API keys for this tenant
 }
 
 /// USERS (Individual People)
@@ -189,6 +193,7 @@ model User {
   shareTokens        ShareToken[] // Shared results created by this user
   auditLogs          AuditLog[] // Admin actions performed by this user
   abuseFlags         AbuseFlag[] // Abuse flags for this user
+  apiKeys            ApiKey[] // API keys created by this user
 
   // SIGNUP METADATA (for multi-account detection)
   signupIp        String? // IP address at signup time
@@ -306,4 +311,29 @@ model AbuseFlag {
   @@index([severity])
   @@index([resolved])
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// API Keys — Public API access tokens (not Firebase-based)
+// ---------------------------------------------------------------------------
+model ApiKey {
+  id            String    @id @default(uuid())
+  tenantId      Int
+  userId        Int       // Who created this key
+  name          String    // Human-readable label (e.g., "Production Key")
+  keyPrefix     String    // First 12 chars for display (e.g., "vra_live_a1b2")
+  keyHash       String    @unique // SHA-256 hash of the full key (for fast lookup)
+  encryptedKey  String?   // AES-256-GCM encrypted full key (for reveal in dashboard)
+  scopes        String[]  @default(["faces.compare", "faces.search", "faces.batch", "videos.analyze", "videos.status"])
+  lastUsedAt    DateTime?
+  expiresAt     DateTime? // Expiry date (null = never expires)
+  revokedAt     DateTime? // If set, key is revoked
+  createdAt     DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([keyHash])
+  @@index([tenantId])
+  @@index([userId])
 }

@@ -961,6 +961,301 @@ function createAdminRouter(prisma) {
   })
 
   // ========================================================================
+  // API KEYS — Full overview for admin  (GET /api/admin/api-keys)
+  // ========================================================================
+  router.get('/api-keys', async (req, res) => {
+    try {
+      const {
+        page = 1,
+        limit = 30,
+        status,   // active | revoked | expired
+        plan,
+        search,
+        sort = 'lastUsedAt',
+        order = 'desc',
+      } = req.query
+
+      const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10)
+      const take = parseInt(limit, 10)
+
+      const now = new Date()
+
+      const where = {}
+      if (status === 'revoked') {
+        where.revokedAt = { not: null }
+      } else if (status === 'expired') {
+        where.revokedAt = null
+        where.expiresAt = { lt: now }
+      } else if (status === 'active') {
+        where.revokedAt = null
+        where.OR = [{ expiresAt: null }, { expiresAt: { gte: now } }]
+      }
+
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { keyPrefix: { contains: search, mode: 'insensitive' } },
+          { user: { email: { contains: search, mode: 'insensitive' } } },
+        ]
+      }
+
+      const orderBy = {}
+      const validSorts = ['createdAt', 'lastUsedAt', 'name', 'expiresAt']
+      const sortField = validSorts.includes(sort) ? sort : 'createdAt'
+      orderBy[sortField] = order === 'asc' ? 'asc' : 'desc'
+
+      const [apiKeys, total] = await Promise.all([
+        prisma.apiKey.findMany({
+          where,
+          skip,
+          take,
+          orderBy,
+          include: {
+            user: { select: { id: true, email: true, username: true, systemRole: true } },
+            tenant: { include: { plan: { select: { code: true, name: true } } } },
+          },
+        }),
+        prisma.apiKey.count({ where }),
+      ])
+
+      // Attach call counts per key from AuditLog (batch)
+      const keyIds = apiKeys.map((k) => k.id)
+      const callCounts = keyIds.length > 0 ? await prisma.$queryRaw`
+        SELECT
+          (detail->>'apiKeyId') AS key_id,
+          COUNT(*)::int AS total_calls,
+          COUNT(*) FILTER (WHERE timestamp >= NOW() - INTERVAL '24 hours')::int AS calls_today,
+          COUNT(*) FILTER (WHERE timestamp >= NOW() - INTERVAL '30 days')::int AS calls_month,
+          MAX(timestamp) AS last_call
+        FROM "AuditLog"
+        WHERE action = 'API_CALL'
+          AND detail->>'apiKeyId' = ANY(${keyIds})
+        GROUP BY detail->>'apiKeyId'
+      ` : []
+
+      const countMap = {}
+      for (const row of callCounts) {
+        countMap[row.key_id] = row
+      }
+
+      const result = apiKeys.map((k) => {
+        const counts = countMap[k.id] || {}
+        const isActive = !k.revokedAt && (!k.expiresAt || k.expiresAt >= now)
+        const isExpired = !k.revokedAt && !!k.expiresAt && k.expiresAt < now
+        return {
+          id: k.id,
+          name: k.name,
+          keyPrefix: k.keyPrefix,
+          scopes: k.scopes,
+          status: k.revokedAt ? 'revoked' : isExpired ? 'expired' : 'active',
+          createdAt: k.createdAt,
+          lastUsedAt: k.lastUsedAt,
+          expiresAt: k.expiresAt,
+          revokedAt: k.revokedAt,
+          user: {
+            id: k.user.id,
+            email: k.user.email,
+            username: k.user.username,
+            role: k.user.systemRole,
+          },
+          tenant: {
+            id: k.tenant.id,
+            name: k.tenant.name,
+            plan: k.tenant.plan?.code || 'FREE',
+            planName: k.tenant.plan?.name || 'Free',
+          },
+          stats: {
+            totalCalls: counts.total_calls || 0,
+            callsToday: counts.calls_today || 0,
+            callsMonth: counts.calls_month || 0,
+            lastCallAt: counts.last_call || null,
+          },
+        }
+      })
+
+      // Summary stats
+      const [totalKeys, activeKeys, totalCallsToday, totalCallsMonth] = await Promise.all([
+        prisma.apiKey.count(),
+        prisma.apiKey.count({ where: { revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gte: now } }] } }),
+        prisma.auditLog.count({ where: { action: 'API_CALL', timestamp: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) } } }),
+        prisma.auditLog.count({ where: { action: 'API_CALL', timestamp: { gte: new Date(now.getFullYear(), now.getMonth(), 1) } } }),
+      ])
+
+      res.json({
+        data: result,
+        pagination: {
+          total,
+          page: parseInt(page, 10),
+          limit: take,
+          totalPages: Math.ceil(total / take),
+        },
+        summary: { totalKeys, activeKeys, revokedKeys: totalKeys - activeKeys, callsToday: totalCallsToday, callsMonth: totalCallsMonth },
+      })
+    } catch (err) {
+      console.error('Admin api-keys list error:', err)
+      res.status(500).json({ error: 'Failed to fetch API keys' })
+    }
+  })
+
+  // ========================================================================
+  // API KEY DETAIL  (GET /api/admin/api-keys/:keyId)
+  // ========================================================================
+  router.get('/api-keys/:keyId', async (req, res) => {
+    try {
+      const { keyId } = req.params
+
+      const apiKey = await prisma.apiKey.findUnique({
+        where: { id: keyId },
+        include: {
+          user: { select: { id: true, email: true, username: true, systemRole: true, createdAt: true, lastLoginAt: true, loginCount: true } },
+          tenant: {
+            include: {
+              plan: { select: { code: true, name: true } },
+              _count: { select: { apiKeys: true } },
+            },
+          },
+        },
+      })
+
+      if (!apiKey) return res.status(404).json({ error: 'API key not found' })
+
+      // Calls per day (last 30 days)
+      const callsPerDay = await prisma.$queryRaw`
+        SELECT
+          DATE(timestamp) AS date,
+          COUNT(*)::int AS calls,
+          COUNT(*) FILTER (WHERE "responseStatus" < 400)::int AS successful,
+          COUNT(*) FILTER (WHERE "responseStatus" >= 400)::int AS errors
+        FROM "AuditLog"
+        WHERE action = 'API_CALL'
+          AND detail->>'apiKeyId' = ${keyId}
+          AND timestamp >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE(timestamp)
+        ORDER BY date ASC
+      `
+
+      // Calls by endpoint
+      const callsByEndpoint = await prisma.$queryRaw`
+        SELECT
+          endpoint,
+          COUNT(*)::int AS calls,
+          COUNT(*) FILTER (WHERE "responseStatus" < 400)::int AS successful,
+          ROUND(AVG("responseStatus"))::int AS avg_status
+        FROM "AuditLog"
+        WHERE action = 'API_CALL'
+          AND detail->>'apiKeyId' = ${keyId}
+        GROUP BY endpoint
+        ORDER BY calls DESC
+        LIMIT 10
+      `
+
+      // Calls by hour of day (patterns)
+      const callsByHour = await prisma.$queryRaw`
+        SELECT
+          EXTRACT(HOUR FROM timestamp)::int AS hour,
+          COUNT(*)::int AS calls
+        FROM "AuditLog"
+        WHERE action = 'API_CALL'
+          AND detail->>'apiKeyId' = ${keyId}
+          AND timestamp >= NOW() - INTERVAL '7 days'
+        GROUP BY EXTRACT(HOUR FROM timestamp)
+        ORDER BY hour ASC
+      `
+
+      // Recent 50 calls
+      const recentCalls = await prisma.auditLog.findMany({
+        where: {
+          action: 'API_CALL',
+          detail: { path: ['apiKeyId'], equals: keyId },
+        },
+        orderBy: { timestamp: 'desc' },
+        take: 50,
+        select: {
+          id: true,
+          endpoint: true,
+          method: true,
+          ipAddress: true,
+          userAgent: true,
+          responseStatus: true,
+          timestamp: true,
+        },
+      })
+
+      // Total stats
+      const [totalCalls, successCalls, errorCalls] = await Promise.all([
+        prisma.auditLog.count({ where: { action: 'API_CALL', detail: { path: ['apiKeyId'], equals: keyId } } }),
+        prisma.auditLog.count({ where: { action: 'API_CALL', detail: { path: ['apiKeyId'], equals: keyId }, responseStatus: { lt: 400 } } }),
+        prisma.auditLog.count({ where: { action: 'API_CALL', detail: { path: ['apiKeyId'], equals: keyId }, responseStatus: { gte: 400 } } }),
+      ])
+
+      const now = new Date()
+      const isActive = !apiKey.revokedAt && (!apiKey.expiresAt || apiKey.expiresAt >= now)
+
+      res.json({
+        key: {
+          id: apiKey.id,
+          name: apiKey.name,
+          keyPrefix: apiKey.keyPrefix,
+          status: apiKey.revokedAt ? 'revoked' : !isActive ? 'expired' : 'active',
+          scopes: apiKey.scopes,
+          createdAt: apiKey.createdAt,
+          lastUsedAt: apiKey.lastUsedAt,
+          expiresAt: apiKey.expiresAt,
+          revokedAt: apiKey.revokedAt,
+          user: apiKey.user,
+          tenant: {
+            id: apiKey.tenant.id,
+            name: apiKey.tenant.name,
+            plan: apiKey.tenant.plan?.code || 'FREE',
+            planName: apiKey.tenant.plan?.name || 'Free',
+            totalKeys: apiKey.tenant._count.apiKeys,
+          },
+        },
+        stats: {
+          totalCalls,
+          successCalls,
+          errorCalls,
+          successRate: totalCalls > 0 ? Math.round((successCalls / totalCalls) * 100) : 0,
+        },
+        callsPerDay,
+        callsByEndpoint,
+        callsByHour,
+        recentCalls,
+      })
+    } catch (err) {
+      console.error('Admin api-key detail error:', err)
+      res.status(500).json({ error: 'Failed to fetch API key detail' })
+    }
+  })
+
+  // ========================================================================
+  // REVOKE KEY (admin force-revoke)  (DELETE /api/admin/api-keys/:keyId)
+  // ========================================================================
+  router.delete('/api-keys/:keyId', async (req, res) => {
+    try {
+      const { keyId } = req.params
+      const apiKey = await prisma.apiKey.findUnique({ where: { id: keyId } })
+      if (!apiKey) return res.status(404).json({ error: 'API key not found' })
+      if (apiKey.revokedAt) return res.status(400).json({ error: 'Already revoked' })
+
+      await prisma.apiKey.update({ where: { id: keyId }, data: { revokedAt: new Date() } })
+
+      auditLog(prisma, {
+        userId: req.saas.user.id,
+        tenantId: req.saas.tenant.id,
+        action: 'API_KEY_REVOKED',
+        detail: { keyId, name: apiKey.name, keyPrefix: apiKey.keyPrefix, revokedByAdmin: true },
+        meta: { method: req.method, path: req.originalUrl, ip: req.ip, userAgent: req.get('user-agent') },
+      })
+
+      res.json({ success: true, message: 'API key revoked by admin' })
+    } catch (err) {
+      console.error('Admin revoke api-key error:', err)
+      res.status(500).json({ error: 'Failed to revoke API key' })
+    }
+  })
+
+  // ========================================================================
   // PLANS LIST  (GET /api/admin/plans)
   // ========================================================================
   router.get('/plans', async (req, res) => {
