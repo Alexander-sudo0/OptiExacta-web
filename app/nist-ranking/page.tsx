@@ -12,7 +12,7 @@ export default function NISTRanking() {
               NIST Ranked <span className="text-blue-400">#1</span> Facial Recognition
             </h1>
             <p className="text-xl text-gray-400">
-              OptiExacta Labs achieved the highest accuracy scores in the NIST Face Recognition Vendor Test (FRVT),
+              VisionEra achieved the highest accuracy scores in the NIST Face Recognition Vendor Test (FRVT),
               cementing our position as the leader in facial recognition technology.
             </p>
           </div>
@@ -31,7 +31,7 @@ export default function NISTRanking() {
               <tbody>
                 <tr className="border-b border-blue-900/30 bg-blue-600/10">
                   <td className="px-6 py-4 font-bold text-blue-400">1st</td>
-                  <td className="px-6 py-4 font-semibold">OptiExacta Labs</td>
+                  <td className="px-6 py-4 font-semibold">VisionEra</td>
                   <td className="px-6 py-4">99.85%</td>
                   <td className="px-6 py-4">45ms</td>
                 </tr>

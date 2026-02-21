@@ -60,7 +60,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="max-w-7xl space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">System Overview</h1>
         <span className="text-xs text-gray-500">Last updated: {new Date().toLocaleTimeString()}</span>

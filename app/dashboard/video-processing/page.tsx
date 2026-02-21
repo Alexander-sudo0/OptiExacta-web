@@ -406,8 +406,8 @@ export default function VideoProcessingPage() {
           <div className="flex items-center gap-4">
             <Link href="/dashboard" className="hover:opacity-80 transition-opacity">
               <Image 
-                src="/images/logo-white.png"
-                alt="OptiExacta"
+                src="/images/visionera-logo-white.png"
+                alt="VisionEra"
                 width={40}
                 height={40}
                 className="w-10 h-10 object-contain"

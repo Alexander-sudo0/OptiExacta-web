@@ -12,7 +12,7 @@ export default function Header() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 text-xl font-bold text-blue-400">
           <div className="w-8 h-8 bg-blue-500 rounded" />
-          OptiExacta
+          VisionEra
         </Link>
 
         {/* Desktop Nav */}

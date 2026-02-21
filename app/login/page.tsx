@@ -97,13 +97,13 @@ export default function LoginPage() {
         >
           <Link href="/" className="inline-flex items-center gap-3 mb-12 hover:opacity-80 transition-opacity">
             <Image 
-              src="/images/logo-white.png"
-              alt="OptiExacta"
+              src="/images/visionera-logo-white.png"
+              alt="VisionEra"
               width={60}
               height={60}
               className="w-14 h-14 object-contain"
             />
-            <span className="text-3xl font-bold text-foreground">OptiExacta</span>
+            <span className="text-3xl font-bold text-foreground">VisionEra</span>
           </Link>
           
           <h1 className="text-5xl font-bold text-foreground mb-6 leading-tight">
@@ -150,13 +150,13 @@ export default function LoginPage() {
           <div className="flex justify-center mb-8 lg:hidden">
             <Link href="/" className="hover:opacity-80 transition-opacity flex items-center gap-3">
               <Image 
-                src="/images/logo-white.png"
-                alt="OptiExacta"
+                src="/images/visionera-logo-white.png"
+                alt="VisionEra"
                 width={50}
                 height={50}
                 className="w-12 h-12 object-contain"
               />
-              <span className="text-2xl font-bold text-foreground">OptiExacta</span>
+              <span className="text-2xl font-bold text-foreground">VisionEra</span>
             </Link>
           </div>
 
@@ -165,7 +165,7 @@ export default function LoginPage() {
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-foreground mb-2">Sign In</h2>
               <p className="text-muted-foreground">
-                Access your OptiExacta dashboard
+                Access your VisionEra dashboard
               </p>
             </div>
 

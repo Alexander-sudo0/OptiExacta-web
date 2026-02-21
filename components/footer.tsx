@@ -7,15 +7,13 @@ import { motion } from 'framer-motion'
 export function Footer() {
   const footerLinks = {
     product: [
-      { label: 'Features', href: '/products' },
+      { label: 'Features', href: '/#features' },
+      { label: 'Services', href: '/#services' },
       { label: 'Pricing', href: '/pricing' },
-      { label: 'SDK', href: '/products#sdk' },
-      { label: 'API Docs', href: '#' },
+      { label: 'Dashboard', href: '/dashboard' },
     ],
     company: [
       { label: 'About Us', href: '/about' },
-      { label: 'Blog', href: '#' },
-      { label: 'Careers', href: '#' },
       { label: 'Contact', href: '/contact' },
     ],
     legal: [
@@ -76,13 +74,13 @@ export function Footer() {
           >
             <Link href="/" className="inline-flex items-center gap-3 mb-5 hover:opacity-80 transition-opacity group">
               <Image 
-                src="/images/logo-white.png"
-                alt="OptiExacta"
+                src="/images/visionera-logo-white.png"
+                alt="VisionEra"
                 width={44}
                 height={44}
                 className="w-11 h-11 object-contain group-hover:scale-105 transition-transform"
               />
-              <span className="text-xl font-bold text-foreground">OptiExacta</span>
+              <span className="text-xl font-bold text-foreground">VisionEra</span>
             </Link>
             <p className="text-muted-foreground text-sm mb-6 max-w-xs">
               Leading facial recognition technology, NIST-ranked #1 for accuracy and speed.
@@ -196,7 +194,7 @@ export function Footer() {
         >
           <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
             <p className="text-muted-foreground text-sm">
-              © 2024 OptiExacta Labs. All rights reserved.
+              © 2026 VisionEra. All rights reserved.
             </p>
             <div className="flex items-center gap-2 text-sm">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />

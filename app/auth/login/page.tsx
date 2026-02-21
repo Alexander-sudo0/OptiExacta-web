@@ -21,7 +21,7 @@ export default function Login() {
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold text-blue-400 mb-8">
             <div className="w-8 h-8 bg-blue-500 rounded" />
-            OptiExacta
+            VisionEra
           </Link>
           <h1 className="text-3xl font-bold">Sign In</h1>
           <p className="text-gray-400 mt-2">Access your facial recognition dashboard</p>

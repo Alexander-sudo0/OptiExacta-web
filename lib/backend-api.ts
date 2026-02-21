@@ -71,7 +71,22 @@ export async function backendRequest<T = any>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || error.detail || `HTTP ${response.status}`);
+    
+    // User-friendly error messages for common status codes
+    if (response.status === 429) {
+      throw new Error('Daily API limit reached. Please try again tomorrow or upgrade your plan.');
+    }
+    if (response.status === 413) {
+      throw new Error('File size exceeds your plan limit. Please upload a smaller file.');
+    }
+    if (response.status === 403) {
+      throw new Error('Access denied. Your plan does not include this feature.');
+    }
+    if (response.status === 401) {
+      throw new Error('Authentication failed. Please log in again.');
+    }
+    
+    throw new Error(error.error || error.detail || error.message || `Request failed (HTTP ${response.status})`);
   }
 
   return response.json();
@@ -576,4 +591,23 @@ export async function searchVideoFaces(
     body: formData,
     batchId: options.batchId,
   })
+}
+
+// ============================================================================
+// Usage Stats
+// ============================================================================
+
+export interface UsageStats {
+  apiCallsToday: number
+  monthRequests: number
+  dailyLimit: number
+  monthlyLimit: number
+  systemStatus: 'Online' | 'Degraded'
+}
+
+/**
+ * Get API usage statistics from Redis
+ */
+export async function getUsageStats(): Promise<UsageStats> {
+  return backendRequest('/api/usage/stats')
 }

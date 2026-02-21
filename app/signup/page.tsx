@@ -144,13 +144,13 @@ export default function SignupPage() {
           >
             <Link href="/" className="flex items-center gap-3 mb-12 hover:opacity-80 transition-opacity">
               <Image 
-                src="/images/logo-white.png"
-                alt="OptiExacta"
+                src="/images/visionera-logo-white.png"
+                alt="VisionEra"
                 width={56}
                 height={56}
                 className="w-14 h-14 object-contain"
               />
-              <span className="text-2xl font-bold tracking-tight">OptiExacta</span>
+              <span className="text-2xl font-bold tracking-tight">VisionEra</span>
             </Link>
 
             <h1 className="text-4xl font-bold mb-4 leading-tight">
@@ -158,7 +158,7 @@ export default function SignupPage() {
               <span className="text-white/90">Free Trial Today</span>
             </h1>
             <p className="text-lg text-white/70 mb-10 max-w-md">
-              Join thousands of enterprises using OptiExacta's NIST #1 ranked facial recognition technology.
+              Join thousands of enterprises using VisionEra's NIST #1 ranked facial recognition technology.
             </p>
 
             {/* Feature Grid */}
@@ -186,7 +186,7 @@ export default function SignupPage() {
               transition={{ delay: 0.8 }}
             >
               <p className="text-white/80 italic text-sm mb-3">
-                "OptiExacta transformed our security infrastructure. The accuracy is unmatched."
+                "VisionEra made face recognition incredibly easy. We set up our entire system in under an hour."
               </p>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center font-bold">
@@ -220,13 +220,13 @@ export default function SignupPage() {
           <div className="lg:hidden text-center mb-8">
             <Link href="/" className="inline-flex items-center gap-3 hover:opacity-80 transition-opacity">
               <Image 
-                src="/images/logo-white.png"
-                alt="OptiExacta"
+                src="/images/visionera-logo-white.png"
+                alt="VisionEra"
                 width={48}
                 height={48}
                 className="w-12 h-12 object-contain"
               />
-              <span className="text-xl font-bold text-foreground">OptiExacta</span>
+              <span className="text-xl font-bold text-foreground">VisionEra</span>
             </Link>
           </div>
 

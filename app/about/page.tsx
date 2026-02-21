@@ -11,10 +11,10 @@ export default function AboutPage() {
       <Navbar />
 
       <HeroSection 
-        title="About OptiExacta"
-        subtitle="Leading the facial recognition revolution with NIST-ranked #1 technology"
+        title="About VisionEra"
+        subtitle="Facial recognition as a service — powerful, accurate, and simple to use"
         backgroundImage="/images/hero-facial-recognition.jpg"
-        badge="Pioneering Innovation"
+        badge="Our Story"
       />
 
       {/* Company Story */}
@@ -23,19 +23,19 @@ export default function AboutPage() {
           <div>
             <h2 className="text-4xl font-bold text-foreground mb-6">Our Journey</h2>
             <p className="text-lg text-muted-foreground mb-6">
-              OptiExacta Labs is a trailblazing Indian company that ranks among the top in the National Institute of Standards and Technology (NIST) facial recognition leaderboard. We are the first Indian company to achieve the #1 ranking, a milestone that underscores our excellence in accuracy, speed, and reliability.
+              VisionEra was built to make facial recognition accessible to everyone — from startups to enterprises. We believe advanced face recognition should not require expensive hardware, complex SDKs, or deep ML expertise.
             </p>
             <p className="text-lg text-muted-foreground mb-6">
-              Founded with a mission to revolutionize surveillance and security through cutting-edge technology, OptiExacta combines precision engineering with innovative solutions to meet the evolving challenges of modern security.
+              Our cloud platform lets you verify, search, and match faces from a simple web dashboard. Upload photos or videos, run searches, and get results — all without writing a single line of code.
             </p>
             <p className="text-lg text-muted-foreground">
-              Our commitment to excellence drives us to continuously improve and innovate, delivering unparalleled performance and reliability in every product we offer.
+              We are committed to delivering the highest accuracy and reliability, making our platform the go-to solution for organizations across industries.
             </p>
           </div>
           <div className="relative h-96 rounded-lg overflow-hidden">
             <Image 
               src="/security-technology.jpg"
-              alt="OptiExacta Innovation"
+              alt="VisionEra Platform"
               fill
               className="object-cover"
             />
@@ -51,42 +51,42 @@ export default function AboutPage() {
             <div className="p-8 rounded-lg border border-border bg-background/50">
               <h3 className="text-2xl font-bold text-foreground mb-4">Our Mission</h3>
               <p className="text-muted-foreground">
-                To deliver advanced facial recognition technology that enhances security, streamlines operations, and enables organizations to make informed decisions swiftly and efficiently.
+                To democratize facial recognition technology by providing a cloud platform that is powerful yet simple to use — accessible to organizations of all sizes.
               </p>
             </div>
             <div className="p-8 rounded-lg border border-border bg-background/50">
               <h3 className="text-2xl font-bold text-foreground mb-4">Our Vision</h3>
               <p className="text-muted-foreground">
-                To be the global leader in facial recognition technology, trusted by enterprises and governments worldwide for our accuracy, reliability, and commitment to innovation.
+                To become the leading cloud platform for facial recognition, trusted for our accuracy, reliability, and ease of use across industries worldwide.
               </p>
             </div>
             <div className="p-8 rounded-lg border border-border bg-background/50">
               <h3 className="text-2xl font-bold text-foreground mb-4">Our Values</h3>
               <p className="text-muted-foreground">
-                Innovation, accuracy, security, and collaboration. We foster a culture of continuous improvement and strive to exceed expectations in everything we do.
+                Simplicity, accuracy, security, and innovation. We believe the best technology is one that anyone can use without complexity or barriers.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Technology Highlights */}
+      {/* What We Offer */}
       <section className="max-w-7xl mx-auto px-6 py-24">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-foreground mb-4">Why Choose OptiExacta</h2>
+          <h2 className="text-4xl font-bold text-foreground mb-4">Why Choose VisionEra</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Our technology stands out with proven performance and enterprise-grade capabilities
+            A facial recognition platform built for real-world needs
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {[
-            { title: 'NIST Ranked #1', description: 'Top ranked in the National Institute of Standards and Technology facial recognition leaderboard' },
-            { title: '99.9% Accuracy', description: 'Industry-leading accuracy rate across diverse facial recognition tasks' },
-            { title: 'Real-Time Processing', description: 'Sub-100ms processing speed for instant facial recognition' },
-            { title: 'Scalable Infrastructure', description: 'Built to handle millions of faces with enterprise-grade reliability' },
-            { title: 'Multi-face Detection', description: 'Detect and identify multiple faces simultaneously in complex environments' },
-            { title: 'Global Deployment', description: 'Deployed in 50+ countries across government, enterprise, and security sectors' }
+            { title: '99.9% Accuracy', description: 'Industry-leading facial recognition accuracy across diverse demographics and conditions' },
+            { title: 'No Code Required', description: 'Use our web dashboard — no SDKs, no APIs, no development work needed' },
+            { title: 'Video Processing', description: 'Upload video footage and search faces automatically — a feature most platforms lack' },
+            { title: 'Scalable Cloud', description: 'Handle from 10 to 10 million face searches without any infrastructure changes' },
+            { title: 'Multiple Search Modes', description: '1:1 verification, 1:N search, and N:N matching — all from one platform' },
+            { title: 'Real-Time Analytics', description: 'Track usage, monitor performance, and view detailed insights in your dashboard' }
           ].map((highlight) => (
             <div key={highlight.title} className="p-6 rounded-lg border border-border bg-card/50 hover:bg-card/80 transition-all hover:border-secondary">
               <h3 className="text-xl font-semibold text-foreground mb-3">{highlight.title}</h3>
@@ -96,57 +96,32 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Solutions Lab */}
+      {/* Platform Overview */}
       <section className="bg-card/30 py-24">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative h-96 rounded-lg overflow-hidden">
               <Image 
                 src="/analytics-dashboard.jpg"
-                alt="Solutions Lab"
+                alt="VisionEra Dashboard"
                 fill
                 className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
             </div>
             <div>
-              <h2 className="text-4xl font-bold text-foreground mb-6">Solutions Lab</h2>
+              <h2 className="text-4xl font-bold text-foreground mb-6">Built for Teams</h2>
               <p className="text-lg text-muted-foreground mb-6">
-                At OptiExacta Labs, we continuously develop and refine our advanced technology. Our innovation lab is where we explore new possibilities, test cutting-edge features, and create solutions that push the boundaries of facial recognition technology.
+                VisionEra is designed for organizations that need reliable face recognition without the complexity. Our dashboard makes it easy for non-technical teams to upload, search, and manage face data.
               </p>
               <p className="text-lg text-muted-foreground mb-6">
-                We work closely with our clients to understand their unique challenges and develop tailored solutions that enhance their security and surveillance capabilities.
+                Whether you are a security analyst, HR manager, or investigator — our platform gives you the tools to get the job done quickly and accurately.
               </p>
-              <button className="px-8 py-3 bg-gradient-to-r from-primary to-secondary text-primary-foreground font-semibold rounded-full hover:opacity-90 transition-opacity">
-                Visit Our Lab
-              </button>
+              <a href="/signup" className="px-8 py-3 bg-gradient-to-r from-primary to-secondary text-primary-foreground font-semibold rounded-full hover:opacity-90 transition-opacity inline-block">
+                Get Started Free
+              </a>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Team Section */}
-      <section className="max-w-7xl mx-auto px-6 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-foreground mb-4">Expert Team</h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Composed of leading researchers, engineers, and security experts
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {[
-            { role: 'Chief Technology Officer', expertise: 'AI & Machine Learning' },
-            { role: 'Security Director', expertise: 'Enterprise Security' },
-            { role: 'Research Lead', expertise: 'Computer Vision' },
-            { role: 'Product Manager', expertise: 'Strategic Vision' }
-          ].map((member, idx) => (
-            <div key={idx} className="text-center p-6 rounded-lg border border-border bg-card/50 hover:bg-card/80 transition-all">
-              <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary to-secondary" />
-              <h3 className="font-semibold text-foreground mb-2">{member.role}</h3>
-              <p className="text-muted-foreground text-sm">{member.expertise}</p>
-            </div>
-          ))}
         </div>
       </section>
 

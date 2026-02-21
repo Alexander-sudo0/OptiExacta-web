@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Company */}
           <div>
-            <h3 className="text-white font-bold mb-4">OptiExacta Labs</h3>
+            <h3 className="text-white font-bold mb-4">VisionEra</h3>
             <p className="text-sm text-gray-400">
               Advanced facial recognition APIs powered by NIST-ranked technology.
             </p>
@@ -81,7 +81,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-blue-900/20 pt-8 flex justify-between text-sm text-gray-500">
-          <p>&copy; 2024 OptiExacta Labs. All rights reserved.</p>
+          <p>&copy; 2024 VisionEra. All rights reserved.</p>
           <div className="space-x-4">
             <a href="#" className="hover:text-gray-300">
               Privacy

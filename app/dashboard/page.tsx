@@ -6,55 +6,22 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { listFaceSearchRequests, listShareTokens, FaceSearchRequestSummary } from '@/lib/backend-api'
+import { backendRequest } from '@/lib/backend-api'
 
 type DashboardStats = {
   apiCallsToday: number
-  facesProcessedToday: number
-  activeShareTokens: number
-  systemStatus: 'Online' | 'Degraded'
   monthRequests: number
-  monthFacesProcessed: number
-  completionRate: number
-  totalRequests: number
+  systemStatus: 'Online' | 'Degraded'
+  dailyLimit: number
+  monthlyLimit: number
 }
 
 const EMPTY_STATS: DashboardStats = {
   apiCallsToday: 0,
-  facesProcessedToday: 0,
-  activeShareTokens: 0,
-  systemStatus: 'Degraded',
   monthRequests: 0,
-  monthFacesProcessed: 0,
-  completionRate: 0,
-  totalRequests: 0,
-}
-
-const isSameDay = (a: Date, b: Date) => (
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate()
-)
-
-const countFacesFromRequest = (request: FaceSearchRequestSummary) => {
-  const data = request.requestData || {}
-
-  if (request.type === 'ONE_TO_ONE') {
-    return 2
-  }
-
-  if (request.type === 'ONE_TO_N') {
-    const targets = Array.isArray(data.targets) ? data.targets.length : 0
-    return 1 + targets
-  }
-
-  if (request.type === 'N_TO_N') {
-    const set1 = Array.isArray(data.set1) ? data.set1.length : 0
-    const set2 = Array.isArray(data.set2) ? data.set2.length : 0
-    return set1 + set2
-  }
-
-  return 0
+  systemStatus: 'Degraded',
+  dailyLimit: 0,
+  monthlyLimit: 0,
 }
 
 export default function DashboardPage() {
@@ -79,62 +46,20 @@ export default function DashboardPage() {
         setStatsLoading(true)
         setStatsError(null)
 
-        const [requestList, shareTokens] = await Promise.all([
-          listFaceSearchRequests({ limit: 200, offset: 0 }),
-          listShareTokens(),
-        ])
+        const data: any = await backendRequest('/api/payments/status')
 
         if (!isMounted) return
 
-        const now = new Date()
-        const monthAgo = new Date()
-        monthAgo.setDate(monthAgo.getDate() - 30)
-
-        let apiCallsToday = 0
-        let facesProcessedToday = 0
-        let monthRequests = 0
-        let monthFacesProcessed = 0
-        let completedRequests = 0
-
-        requestList.requests.forEach((request) => {
-          const createdAt = new Date(request.createdAt)
-          const faces = countFacesFromRequest(request)
-
-          if (isSameDay(createdAt, now)) {
-            apiCallsToday += 1
-            facesProcessedToday += faces
-          }
-
-          if (createdAt >= monthAgo) {
-            monthRequests += 1
-            monthFacesProcessed += faces
-          }
-
-          if (String(request.status).toLowerCase() === 'completed') {
-            completedRequests += 1
-          }
-        })
-
-        const activeShareTokens = shareTokens.tokens.filter((token) => (
-          new Date(token.expiresAt) > now
-        )).length
-
-        const completionRate = requestList.requests.length > 0
-          ? (completedRequests / requestList.requests.length) * 100
-          : 0
-
         setStats({
-          apiCallsToday,
-          facesProcessedToday,
-          activeShareTokens,
+          apiCallsToday: data.usage?.dayRequests || 0,
+          monthRequests: data.usage?.monthRequests || 0,
           systemStatus: 'Online',
-          monthRequests,
-          monthFacesProcessed,
-          completionRate,
-          totalRequests: requestList.pagination.total,
+          dailyLimit: data.limits?.dailyRequestLimit || 0,
+          monthlyLimit: data.limits?.monthlyRequestLimit || 0,
         })
       } catch (error: any) {
         if (!isMounted) return
+        console.error('Failed to load dashboard stats:', error)
         setStatsError(error?.message || 'Failed to load dashboard stats')
         setStats(EMPTY_STATS)
       } finally {
@@ -208,14 +133,25 @@ export default function DashboardPage() {
 
   ]
 
-  const quickStats = useMemo(() => (
-    [
-      { label: 'API Calls Today', value: stats.apiCallsToday.toLocaleString(), icon: '📡', change: statsLoading ? 'Loading' : 'Live' },
-      { label: 'Faces Processed Today', value: stats.facesProcessedToday.toLocaleString(), icon: '👤', change: statsLoading ? 'Loading' : 'Live' },
-      { label: 'API Calls (30d)', value: stats.monthRequests.toLocaleString(), icon: '📊', change: statsLoading ? 'Loading' : `${stats.totalRequests.toLocaleString()} total` },
-      { label: 'Completion Rate', value: `${stats.completionRate.toFixed(1)}%`, icon: '✅', change: statsLoading ? 'Loading' : 'Completed' },
+  const quickStats = useMemo(() => {
+    const dailyPercentage = stats.dailyLimit > 0 ? Math.round((stats.apiCallsToday / stats.dailyLimit) * 100) : 0
+    const monthlyPercentage = stats.monthlyLimit > 0 ? Math.round((stats.monthRequests / stats.monthlyLimit) * 100) : 0
+    
+    return [
+      { 
+        label: 'API Calls Today', 
+        value: stats.apiCallsToday.toLocaleString(), 
+        icon: '📡', 
+        change: statsLoading ? 'Loading...' : stats.dailyLimit > 0 ? `${stats.apiCallsToday}/${stats.dailyLimit}` : 'Live'
+      },
+      { 
+        label: 'API Calls (30d)', 
+        value: stats.monthRequests.toLocaleString(), 
+        icon: '📊', 
+        change: statsLoading ? 'Loading...' : stats.monthlyLimit > 0 ? `${monthlyPercentage}%` : '0 total'
+      },
     ]
-  ), [stats, statsLoading])
+  }, [stats, statsLoading])
 
   // Conditional returns AFTER all hooks
   if (isLoading) {
@@ -248,13 +184,28 @@ export default function DashboardPage() {
             Welcome back, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{user?.displayName || 'User'}</span>
           </h2>
           <p className="text-lg text-muted-foreground">
-            Access OptiExacta's powerful facial recognition features
+            Access VisionEra's facial recognition services
           </p>
         </motion.div>
 
         {/* Quick Stats */}
+        {statsError && (
+          <motion.div
+            className="mb-6 p-4 rounded-xl border border-destructive/50 bg-destructive/10"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <p className="text-sm text-destructive flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {statsError}
+            </p>
+          </motion.div>
+        )}
+        
         <motion.div 
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10"
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 max-w-4xl"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
@@ -262,19 +213,19 @@ export default function DashboardPage() {
           {quickStats.map((stat, i) => (
             <motion.div 
               key={stat.label}
-              className="p-4 rounded-xl border border-border bg-card/30 hover:bg-card/50 transition-colors"
+              className="p-6 rounded-xl border border-border bg-card/30 hover:bg-card/50 transition-colors"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 + i * 0.05 }}
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl">{stat.icon}</span>
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-secondary/10 text-secondary">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-3xl">{stat.icon}</span>
+                <span className="text-sm font-medium px-3 py-1 rounded-full bg-secondary/10 text-secondary">
                   {stat.change}
                 </span>
               </div>
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
+              <p className="text-3xl font-bold text-foreground mb-1">{stat.value}</p>
+              <p className="text-sm text-muted-foreground">{stat.label}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -332,47 +283,6 @@ export default function DashboardPage() {
               </motion.div>
             ))}
           </div>
-        </motion.div>
-
-        {/* Platform Stats */}
-        <motion.div 
-          className="mt-12 pt-8 border-t border-border"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
-            <svg className="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Platform Performance
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {[
-              { label: 'API Calls (30d)', value: stats.monthRequests.toLocaleString(), trend: statsLoading ? 'Loading' : `${stats.totalRequests.toLocaleString()} total` },
-              { label: 'Faces Processed (30d)', value: stats.monthFacesProcessed.toLocaleString(), trend: statsLoading ? 'Loading' : 'Based on requests' },
-              { label: 'Completion Rate', value: `${stats.completionRate.toFixed(1)}%`, trend: statsLoading ? 'Loading' : 'Completed' },
-            ].map((stat, i) => (
-              <motion.div 
-                key={stat.label} 
-                className="p-5 rounded-xl border border-border bg-card/30"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 + i * 0.1 }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <span className="text-xs font-medium text-secondary">{stat.trend}</span>
-                </div>
-                <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-primary to-secondary bg-clip-text">
-                  {stat.value}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-          {statsError && (
-            <p className="mt-4 text-sm text-destructive">{statsError}</p>
-          )}
         </motion.div>
       </main>
     </div>

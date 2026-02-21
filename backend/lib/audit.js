@@ -35,6 +35,12 @@ function getClientIp(req) {
  */
 async function auditLog(prisma, { action, userId, tenantId, targetUserId, ip, meta }) {
   try {
+    // Extract fields that have dedicated columns
+    const method = meta?.method || null
+    const endpoint = meta?.path || null
+    const responseStatus = meta?.status || null
+    const userAgent = meta?.userAgent || null
+
     // Merge targetUserId into meta if provided (AuditLog table has no targetUserId column)
     const mergedDetail = targetUserId
       ? { ...meta, targetUserId }
@@ -46,6 +52,10 @@ async function auditLog(prisma, { action, userId, tenantId, targetUserId, ip, me
         userId:       userId       || null,
         tenantId:     tenantId     || null,
         ipAddress:    ip           || null,
+        method,
+        endpoint,
+        responseStatus,
+        userAgent,
         detail:       mergedDetail ? JSON.stringify(mergedDetail) : null,
       },
     })

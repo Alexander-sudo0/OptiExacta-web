@@ -36,16 +36,16 @@ export function Navbar() {
             transition={{ duration: 0.5 }}
           >
             <Image 
-              src="/images/logo-white.png"
-              alt="OptiExacta"
+              src="/images/visionera-logo-white.png"
+              alt="VisionEra"
               width={44}
               height={44}
               className="w-11 h-11 object-contain"
             />
           </motion.div>
           <div className="flex flex-col">
-            <span className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">OptiExacta</span>
-            <span className="text-[10px] text-muted-foreground font-medium tracking-wider">NIST #1 RANKED</span>
+            <span className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">VisionEra</span>
+            <span className="text-[10px] text-muted-foreground font-medium tracking-wider">FACIAL RECOGNITION</span>
           </div>
         </Link>
 
@@ -53,7 +53,7 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-1">
           {[
             { href: '/#features', label: 'Features' },
-            { href: '/products', label: 'Products' },
+            { href: '/#services', label: 'Services' },
             { href: '/pricing', label: 'Pricing' },
             { href: '/about', label: 'About' }
           ].map((link) => (
@@ -117,7 +117,7 @@ export function Navbar() {
             <div className="p-4 space-y-1">
               {[
                 { href: '/#features', label: 'Features' },
-                { href: '/products', label: 'Products' },
+                { href: '/#services', label: 'Services' },
                 { href: '/pricing', label: 'Pricing' },
                 { href: '/about', label: 'About' }
               ].map((link, i) => (

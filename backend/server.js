@@ -697,6 +697,51 @@ app.get(
 )
 
 // ============================================================================
+// USAGE STATS - Get API usage statistics from Redis
+// ============================================================================
+
+app.get(
+  '/api/usage/stats',
+  verifyAuth,
+  attachTenantContext(prisma),
+  enforceRateLimits({ tenantPerMinute: 60 }),
+  async (req, res) => {
+    try {
+      const { tenant, plan } = req.saas
+      const redis = await getRedisClient()
+
+      // Get today's usage
+      const now = new Date()
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      const dayKey = `usage:tenant:${tenant.id}:day:${today}`
+      
+      // Get this month's usage
+      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      const monthKey = `usage:tenant:${tenant.id}:month:${yearMonth}`
+
+      const [dailyUsage, monthlyUsage] = await Promise.all([
+        redis.get(dayKey).catch(() => null),
+        redis.get(monthKey).catch(() => null),
+      ])
+
+      const apiCallsToday = parseInt(dailyUsage || '0', 10)
+      const monthRequests = parseInt(monthlyUsage || '0', 10)
+
+      res.json({
+        apiCallsToday,
+        monthRequests,
+        dailyLimit: plan.dailyRequestLimit || 0,
+        monthlyLimit: plan.monthlyRequestLimit || 0,
+        systemStatus: 'Online',
+      })
+    } catch (error) {
+      console.error('Usage stats error:', error.message)
+      res.status(500).json({ error: 'Failed to fetch usage stats' })
+    }
+  }
+)
+
+// ============================================================================
 // FRS PROXY - DETECT (proxies to upstream FRS, hides credentials)
 // ============================================================================
 

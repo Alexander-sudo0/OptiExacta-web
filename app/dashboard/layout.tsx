@@ -171,8 +171,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link href="/" className="flex items-center gap-3 group">
                 <div className="relative">
                   <Image 
-                    src="/images/logo-white.png"
-                    alt="OptiExacta"
+                    src="/images/visionera-logo-white.png"
+                    alt="VisionEra"
                     width={40}
                     height={40}
                     className="w-10 h-10 object-contain group-hover:scale-110 transition-transform"
@@ -180,7 +180,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <div className="absolute inset-0 rounded-lg bg-primary/20 blur-xl group-hover:bg-primary/30 transition-colors" />
                 </div>
                 <div>
-                  <span className="text-lg font-bold text-foreground block">OptiExacta</span>
+                  <span className="text-lg font-bold text-foreground block">VisionEra</span>
                   <span className="text-[10px] text-muted-foreground font-medium tracking-wider">FACIAL RECOGNITION</span>
                 </div>
               </Link>
@@ -330,13 +330,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {!sidebarOpen && (
               <Link href="/" className="flex items-center gap-2">
                 <Image 
-                  src="/images/logo-white.png"
-                  alt="OptiExacta"
+                  src="/images/visionera-logo-white.png"
+                  alt="VisionEra"
                   width={32}
                   height={32}
                   className="w-8 h-8 object-contain"
                 />
-                <span className="font-bold text-foreground">OptiExacta</span>
+                <span className="font-bold text-foreground">VisionEra</span>
               </Link>
             )}
           </div>

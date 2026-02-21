@@ -11,7 +11,7 @@ export default function GetStartedPage() {
       <Navbar />
 
       <HeroSection 
-        title="Get Started with OptiExacta"
+        title="Get Started with VisionEra"
         subtitle="Begin your journey with world-class facial recognition technology in minutes"
         badge="Quick Start"
       />
@@ -21,7 +21,7 @@ export default function GetStartedPage() {
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-foreground mb-4">Four Simple Steps</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Get up and running with OptiExacta in just a few minutes
+            Get up and running with VisionEra in just a few minutes
           </p>
         </div>
 
@@ -39,13 +39,13 @@ export default function GetStartedPage() {
             },
             {
               step: '03',
-              title: 'Integrate SDK',
-              description: 'Install our SDK or use the REST API. We provide comprehensive documentation and code samples.'
+              title: 'Upload & Search',
+              description: 'Upload face photos or videos to your dashboard. Search and match faces instantly from your browser.'
             },
             {
               step: '04',
-              title: 'Deploy & Scale',
-              description: 'Deploy to production and scale as needed. Our platform handles millions of faces effortlessly.'
+              title: 'Get Results',
+              description: 'View match results, confidence scores, and analytics. Scale your usage as your needs grow.'
             }
           ].map((item) => (
             <div key={item.step} className="p-6 rounded-lg border border-border bg-card/50 hover:bg-card/80 transition-all">
@@ -65,14 +65,14 @@ export default function GetStartedPage() {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-foreground mb-4">Resources & Support</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Everything you need to succeed with OptiExacta
+              Everything you need to succeed with VisionEra
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { title: 'API Documentation', icon: '📚', desc: 'Comprehensive API reference with examples and best practices' },
-              { title: 'Code Samples', icon: '💻', desc: 'Ready-to-use code examples in Python, C++, and JavaScript' },
+              { title: 'Video Tutorials', icon: '💻', desc: 'Step-by-step guides for using every feature on the platform' },
               { title: 'Video Tutorials', icon: '🎥', desc: 'Step-by-step video guides for common integration scenarios' },
               { title: 'Community Forum', icon: '💬', desc: 'Connect with other developers and get answers quickly' },
               { title: 'Support Team', icon: '🤝', desc: 'Expert support available via email and priority chat' },
@@ -105,8 +105,8 @@ export default function GetStartedPage() {
               a: 'Yes! We offer a 14-day free trial with full access to all features. No credit card required.'
             },
             {
-              q: 'What programming languages are supported?',
-              a: 'We support Python, C++, JavaScript, and more. We also provide REST API for any language.'
+              q: 'Do I need coding skills to use VisionEra?',
+              a: 'No! Everything is done from the web dashboard. Just upload photos or videos and search — no code needed.'
             },
             {
               q: 'Is there technical support during integration?',
@@ -128,7 +128,7 @@ export default function GetStartedPage() {
       {/* Final CTA */}
       <CTABanner
         title="Ready to Transform Your Security?"
-        subtitle="Join hundreds of enterprises already using OptiExacta's facial recognition technology."
+        subtitle="Join hundreds of organizations already using VisionEra's facial recognition platform."
         primaryButton={{ text: 'Start Free Trial', href: '#' }}
         secondaryButton={{ text: 'Schedule a Demo', href: '/contact' }}
       />

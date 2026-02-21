@@ -62,8 +62,13 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <div className="max-w-7xl space-y-4">
-      <h1 className="text-2xl font-bold">Audit Logs</h1>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Audit Logs</h1>
+        <div className="text-xs text-gray-500">
+          Click on any row to view detailed request information
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -100,59 +105,73 @@ export default function AuditLogsPage() {
 
       {/* Log Table */}
       <div className="rounded-xl border border-blue-900/20 overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-[#0d0d14] text-xs text-gray-400 uppercase tracking-wider">
-              <th className="text-left p-3">Timestamp</th>
-              <th className="text-left p-3">User</th>
-              <th className="text-left p-3">Action</th>
-              <th className="text-left p-3">Method</th>
-              <th className="text-left p-3">Endpoint</th>
-              <th className="text-left p-3">Status</th>
-              <th className="text-left p-3">IP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={7} className="text-center p-8 text-gray-500">Loading…</td></tr>
-            ) : logs.length === 0 ? (
-              <tr><td colSpan={7} className="text-center p-8 text-gray-500">No audit logs found</td></tr>
-            ) : logs.map(log => (
-              <React.Fragment key={log.id}>
-                <tr
-                  className="border-t border-blue-900/10 hover:bg-blue-500/5 transition-colors cursor-pointer"
-                  onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                >
-                  <td className="p-3 text-xs text-gray-400 whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleString()}
-                  </td>
-                  <td className="p-3 text-sm text-white">
-                    {log.user?.email || `#${log.userId}` || '—'}
-                  </td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className={`p-3 text-xs font-mono ${methodColor(log.method)}`}>{log.method || '—'}</td>
-                  <td className="p-3 text-xs text-gray-300 font-mono max-w-[200px] truncate">{log.endpoint || '—'}</td>
-                  <td className={`p-3 text-xs font-mono ${statusColor(log.responseStatus)}`}>{log.responseStatus || '—'}</td>
-                  <td className="p-3 text-xs text-gray-500 font-mono">{log.ipAddress || '—'}</td>
-                </tr>
-                {expandedId === log.id && log.detail && (
-                  <tr className="border-t border-blue-900/10">
-                    <td colSpan={7} className="p-4 bg-[#0a0a0f]">
-                      <p className="text-xs text-gray-400 mb-1">Detail:</p>
-                      <pre className="text-xs text-gray-300 bg-[#0d0d14] p-3 rounded-lg overflow-auto max-h-40">
-                        {JSON.stringify(log.detail, null, 2)}
-                      </pre>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px]">
+            <thead>
+              <tr className="bg-[#0d0d14] text-xs text-gray-400 uppercase tracking-wider">
+                <th className="text-left p-3 w-[140px]">Timestamp</th>
+                <th className="text-left p-3 w-[180px]">User</th>
+                <th className="text-left p-3 w-[120px]">Action</th>
+                <th className="text-left p-3 w-[80px]">Method</th>
+                <th className="text-left p-3">Endpoint</th>
+                <th className="text-left p-3 w-[80px]">Status</th>
+                <th className="text-left p-3 w-[120px]">IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7} className="text-center p-8 text-gray-500">Loading…</td></tr>
+              ) : logs.length === 0 ? (
+                <tr><td colSpan={7} className="text-center p-8 text-gray-500">No audit logs found</td></tr>
+              ) : logs.map(log => (
+                <React.Fragment key={log.id}>
+                  <tr
+                    className="border-t border-blue-900/10 hover:bg-blue-500/5 transition-colors cursor-pointer"
+                    onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                  >
+                    <td className="p-3 text-xs text-gray-400 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <svg 
+                          className={`w-3 h-3 transition-transform ${expandedId === log.id ? 'rotate-90' : ''}`} 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                        <span>{new Date(log.timestamp).toLocaleString()}</span>
+                      </div>
                     </td>
+                    <td className="p-3 text-sm text-white truncate max-w-[180px]" title={log.user?.email || ''}>
+                      {log.user?.email || `#${log.userId}` || '—'}
+                    </td>
+                    <td className="p-3">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 whitespace-nowrap">
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className={`p-3 text-xs font-mono font-semibold ${methodColor(log.method)}`}>{log.method || '—'}</td>
+                    <td className="p-3 text-xs text-gray-300 font-mono truncate" title={log.endpoint || ''}>{log.endpoint || '—'}</td>
+                    <td className={`p-3 text-xs font-mono font-semibold ${statusColor(log.responseStatus)}`}>{log.responseStatus || '—'}</td>
+                    <td className="p-3 text-xs text-gray-500 font-mono">{log.ipAddress || '—'}</td>
                   </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
+                  {expandedId === log.id && log.detail && (
+                    <tr className="border-t border-blue-900/10">
+                      <td colSpan={7} className="p-4 bg-[#0a0a0f]">
+                        <p className="text-xs text-gray-400 mb-2 font-semibold">Request Details:</p>
+                        <div className="bg-[#0d0d14] p-4 rounded-lg overflow-auto max-h-80">
+                          <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap break-words">
+                            {typeof log.detail === 'string' ? log.detail : JSON.stringify(log.detail, null, 2)}
+                          </pre>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Pagination */}

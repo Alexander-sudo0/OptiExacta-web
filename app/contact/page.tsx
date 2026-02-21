@@ -34,7 +34,7 @@ export default function ContactPage() {
 
       <HeroSection 
         title="Get in Touch"
-        subtitle="Let's discuss how OptiExacta can transform your security infrastructure"
+        subtitle="Let's discuss how VisionEra can power your facial recognition needs"
         badge="Contact Us"
       />
 
@@ -56,7 +56,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-foreground mb-1">Email</h3>
-                  <p className="text-muted-foreground">optiexacta@optiexacta.com</p>
+                  <p className="text-muted-foreground">contact@visionera.com</p>
                 </div>
               </div>
 
@@ -86,7 +86,7 @@ export default function ContactPage() {
                 <div>
                   <h3 className="text-lg font-semibold text-foreground mb-1">Location</h3>
                   <p className="text-muted-foreground">
-                    OptiExacta Labs<br/>
+                    VisionEra<br/>
                     55, 6th Cross, CBI Road<br/>
                     Ganganagar North, Bengaluru<br/>
                     India

@@ -15,10 +15,10 @@ export default function Home() {
       
       {/* Hero Section */}
       <HeroSection 
-        title="Facial Recognition Powered by AI"
-        subtitle="NIST-ranked #1 facial recognition technology. Real-time detection, identification, and analytics for enterprise security."
+        title="Facial Recognition as a Service"
+        subtitle="Verify, search, and match faces at scale — all from a simple cloud dashboard. No infrastructure to manage."
         backgroundImage="/images/hero-facial-recognition.jpg"
-        badge="Industry-Leading Accuracy"
+        badge="Cloud-Powered FR Platform"
       />
 
       {/* Features Section */}
@@ -31,52 +31,52 @@ export default function Home() {
           viewport={{ once: true }}
         >
           <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-            Capabilities
+            Platform Capabilities
           </span>
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Advanced Features</h2>
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Everything You Need</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Cutting-edge facial recognition features designed for security, safety, and enterprise solutions
+            A complete facial recognition toolkit — upload, detect, search and match from your browser
           </p>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <FeatureCard 
-            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>}
-            title="Real-Time Detection"
-            description="Instant facial recognition in crowds with 99.9% accuracy. Process multiple faces simultaneously."
+            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>}
+            title="1:1 Face Verification"
+            description="Compare two faces to verify identity. Confirm if two photos show the same person with a confidence score."
             gradient
             index={0}
           />
           <FeatureCard 
-            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
-            title="NIST Certified"
-            description="Ranked #1 in NIST facial recognition leaderboard. First Indian company to achieve this status."
+            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>}
+            title="1:N Face Search"
+            description="Search one face against your entire gallery. Find matches across thousands of enrolled faces instantly."
             index={1}
           />
           <FeatureCard 
-            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
-            title="Instant Analytics"
-            description="Retrospective and real-time event insights. Comprehensive data analysis and reporting."
+            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>}
+            title="N:N Face Matching"
+            description="Match multiple faces against multiple faces. Cross-reference entire datasets in a single request."
             gradient
             index={2}
           />
           <FeatureCard 
-            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>}
-            title="Location Tracking"
-            description="Efficient location tracking and analysis with body-based and vehicle identification."
+            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>}
+            title="Video Face Search"
+            description="Upload a video, extract all faces, then search against photos. Perfect for surveillance footage analysis."
             index={3}
           />
           <FeatureCard 
-            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>}
-            title="Enterprise Security"
-            description="Multi-layered security with DDoS protection, firewalls, and 24/7 monitoring."
+            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>}
+            title="Face Studio"
+            description="Enroll, organize, and manage your face gallery. Create collections for different use cases and projects."
             gradient
             index={4}
           />
           <FeatureCard 
-            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>}
-            title="Fast Integration"
-            description="Seamless integration with existing infrastructure. Designed for easy deployment."
+            icon={<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>}
+            title="Usage Analytics"
+            description="Track API calls, monitor usage patterns, and view detailed analytics — all in real time."
             index={5}
           />
         </div>
@@ -95,17 +95,17 @@ export default function Home() {
             <span className="inline-block px-4 py-1.5 rounded-full bg-secondary/10 text-secondary text-sm font-medium mb-4">
               How It Works
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Simple Integration</h2>
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Get Started in Minutes</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Get started in minutes with our easy-to-use API and comprehensive documentation
+              No SDKs, no libraries — just sign up, upload, and search
             </p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { step: '01', title: 'Upload', desc: 'Upload facial images or connect video streams', icon: '📤' },
-              { step: '02', title: 'Process', desc: 'Our AI analyzes and extracts facial features', icon: '⚡' },
-              { step: '03', title: 'Results', desc: 'Get instant matches and detailed analytics', icon: '✅' }
+              { step: '01', title: 'Sign Up', desc: 'Create your free account and access the dashboard instantly', icon: '🚀' },
+              { step: '02', title: 'Upload Faces', desc: 'Upload photos or videos — faces are detected automatically', icon: '📤' },
+              { step: '03', title: 'Search & Match', desc: 'Run 1:1, 1:N, or N:N searches and get results in seconds', icon: '✅' }
             ].map((item, i) => (
               <motion.div 
                 key={item.step}
@@ -125,99 +125,89 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Solutions Section */}
-      <section className="py-24">
+      {/* Services Section */}
+      <section id="services" className="py-24">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-            >
-              <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-                Solutions
-              </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-                Real-Time Surveillance Solutions
-              </h2>
-              <p className="text-lg text-muted-foreground mb-8">
-                Monitor critical areas with comprehensive surveillance capabilities. Our advanced technology delivers real-time insights with instant face recognition in crowds and vehicle identification across network cameras.
-              </p>
-              <ul className="space-y-4 mb-8">
-                {['Public Safety Monitoring', 'Fraud Prevention', 'Identity Verification', 'Urban Security'].map((item, i) => (
-                  <motion.li 
-                    key={item} 
-                    className="flex items-center gap-3"
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: i * 0.1 }}
-                    viewport={{ once: true }}
-                  >
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center">
-                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                      </svg>
-                    </div>
-                    <span className="text-foreground font-medium">{item}</span>
-                  </motion.li>
-                ))}
-              </ul>
-              <Link 
-                href="/products"
-                className="inline-flex items-center gap-2 text-primary font-semibold hover:gap-3 transition-all"
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+          >
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
+              Our Services
+            </span>
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
+              Facial Recognition Cloud Services
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              Access powerful face recognition directly from your browser. No downloads, no complex integrations — just results.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                title: '1:1 Verification',
+                desc: 'Upload two photos and instantly verify if they are the same person. Great for KYC, onboarding, and identity checks.',
+                icon: '🎯',
+                href: '/dashboard/one-to-one'
+              },
+              {
+                title: '1:N Search',
+                desc: 'Search a face against your entire enrolled gallery. Locate a person across thousands of records in milliseconds.',
+                icon: '🔍',
+                href: '/dashboard/one-to-n'
+              },
+              {
+                title: 'N:N Matching',
+                desc: 'Cross-match multiple probe faces against multiple gallery faces. Ideal for deduplication and investigations.',
+                icon: '🔗',
+                href: '/dashboard/face-search-n-n'
+              },
+              {
+                title: 'Video Processing',
+                desc: 'Upload video footage, automatically extract all faces, then search each face against your photo database.',
+                icon: '🎬',
+                href: '/dashboard/video-processing'
+              },
+              {
+                title: 'Face Studio',
+                desc: 'Manage your face gallery — enroll new subjects, organize collections, and maintain your searchable database.',
+                icon: '🗂️',
+                href: '/dashboard/studio'
+              },
+              {
+                title: 'Watchlist Alerts',
+                desc: 'Set up watchlists for persons of interest and get notified when a match is found during any search.',
+                icon: '🔔',
+                href: '/dashboard/watchlist'
+              }
+            ].map((service, i) => (
+              <motion.div
+                key={service.title}
+                className="p-6 rounded-2xl border border-border bg-card/30 hover:bg-card/60 hover:border-primary/30 transition-all duration-300 group"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: i * 0.08 }}
+                viewport={{ once: true }}
+                whileHover={{ y: -5 }}
               >
-                Learn more
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </Link>
-            </motion.div>
-            <motion.div 
-              className="relative"
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-            >
-              <div className="relative h-[500px] rounded-2xl overflow-hidden border border-border/50 shadow-2xl shadow-primary/10">
-                <Image 
-                  src="/images/real-time-monitoring.jpg"
-                  alt="Real-time monitoring system"
-                  fill
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-                
-                {/* Floating stats card */}
-                <motion.div 
-                  className="absolute bottom-6 left-6 right-6 p-4 rounded-xl bg-card/80 backdrop-blur-md border border-border/50"
-                  initial={{ y: 20, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                  viewport={{ once: true }}
+                <div className="text-4xl mb-4">{service.icon}</div>
+                <h3 className="text-xl font-bold text-foreground mb-2">{service.title}</h3>
+                <p className="text-muted-foreground text-sm mb-4">{service.desc}</p>
+                <Link 
+                  href={service.href}
+                  className="text-primary text-sm font-semibold inline-flex items-center gap-1 group-hover:gap-2 transition-all"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Active Cameras</p>
-                      <p className="text-2xl font-bold text-foreground">24</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Faces Detected</p>
-                      <p className="text-2xl font-bold text-secondary">1,247</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Alerts Today</p>
-                      <p className="text-2xl font-bold text-primary">12</p>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-              
-              {/* Decorative elements */}
-              <div className="absolute -z-10 -top-4 -right-4 w-full h-full rounded-2xl border border-primary/20" />
-              <div className="absolute -z-20 -top-8 -right-8 w-full h-full rounded-2xl border border-secondary/10" />
-            </motion.div>
+                  Try it now
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
@@ -232,10 +222,10 @@ export default function Home() {
         >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { label: 'NIST Rank', value: '#1', sublabel: 'Global Ranking' },
               { label: 'Accuracy Rate', value: '99.9%', sublabel: 'Face Recognition' },
-              { label: 'Processing', value: '<100ms', sublabel: 'Response Time' },
-              { label: 'Deployments', value: '50+', sublabel: 'Countries' }
+              { label: 'Processing', value: '<1s', sublabel: 'Response Time' },
+              { label: 'Uptime', value: '99.9%', sublabel: 'Platform Availability' },
+              { label: 'Searches', value: '10M+', sublabel: 'Processed Monthly' }
             ].map((stat, i) => (
               <motion.div 
                 key={stat.label} 
@@ -252,12 +242,56 @@ export default function Home() {
                 <p className="text-foreground font-semibold">{stat.label}</p>
                 <p className="text-sm text-muted-foreground">{stat.sublabel}</p>
                 
-                {/* Glow effect */}
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity -z-10 blur-xl" />
               </motion.div>
             ))}
           </div>
         </motion.div>
+      </section>
+
+      {/* Use Cases */}
+      <section className="bg-card/30 py-24 border-y border-border/50">
+        <div className="max-w-7xl mx-auto px-6">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+          >
+            <span className="inline-block px-4 py-1.5 rounded-full bg-secondary/10 text-secondary text-sm font-medium mb-4">
+              Use Cases
+            </span>
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Built for Every Industry</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              From law enforcement to banking — our platform powers face recognition across industries
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { title: 'Law Enforcement', icon: '🏛️', desc: 'Investigate cases faster with video processing and face matching against suspect databases' },
+              { title: 'Banking & KYC', icon: '🏦', desc: 'Automate identity verification for customer onboarding with 1:1 face verification' },
+              { title: 'Airport Security', icon: '✈️', desc: 'Passenger identification and real-time screening against watchlists' },
+              { title: 'HR & Attendance', icon: '🏢', desc: 'Face-based attendance tracking and employee verification from photos or video' },
+              { title: 'Investigations', icon: '🔎', desc: 'Cross-reference faces across datasets using N:N matching for investigations' },
+              { title: 'Access Control', icon: '🔐', desc: 'Verify identities before granting access to buildings, systems, or restricted areas' }
+            ].map((useCase, i) => (
+              <motion.div 
+                key={useCase.title}
+                className="p-6 rounded-2xl border border-border bg-card/30 hover:bg-card/60 hover:border-secondary/30 transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: i * 0.08 }}
+                viewport={{ once: true }}
+              >
+                <div className="text-4xl mb-4">{useCase.icon}</div>
+                <h3 className="text-xl font-semibold text-foreground mb-2">{useCase.title}</h3>
+                <p className="text-muted-foreground text-sm">{useCase.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* CTA Section */}
@@ -284,9 +318,9 @@ export default function Home() {
             <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
               Get Started Today
             </span>
-            <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6">Ready to Transform Your Security?</h2>
+            <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6">Ready to Search Faces at Scale?</h2>
             <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
-              Join leading enterprises using OptiExacta's facial recognition technology. Start your free trial today.
+              Sign up free and start using our facial recognition platform today. No credit card required.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link 
@@ -305,7 +339,7 @@ export default function Home() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                Schedule a Demo
+                Contact Sales
               </Link>
             </div>
           </motion.div>

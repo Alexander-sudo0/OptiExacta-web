@@ -160,7 +160,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {navItems.find(i => isActive(i.href))?.label || 'Admin'}
             </span>
           </div>
-          <span className="text-xs text-gray-500">OptiExacta</span>
+          <span className="text-xs text-gray-500">VisionEra</span>
         </header>
 
         <main className="flex-1 overflow-auto p-6">
