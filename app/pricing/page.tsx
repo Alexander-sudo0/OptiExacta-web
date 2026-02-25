@@ -30,7 +30,7 @@ const plans = [
   {
     name: 'Pro',
     code: 'PRO',
-    price: '$49.99',
+    price: '$20',
     period: '/month',
     description: 'For teams and growing businesses',
     popular: true,
@@ -50,7 +50,7 @@ const plans = [
   {
     name: 'Enterprise',
     code: 'ENTERPRISE',
-    price: '$199.99',
+    price: '$200',
     period: '/month',
     description: 'For large-scale operations and custom needs',
     popular: false,
@@ -67,6 +67,26 @@ const plans = [
     cta: 'Go Enterprise',
     style: 'border-border hover:border-secondary',
   },
+  {
+    name: 'Custom',
+    code: 'CUSTOM',
+    price: 'Flexible',
+    period: '',
+    description: 'Tailored pricing for unique requirements and high-volume needs',
+    popular: false,
+    features: [
+      'Custom API request limits',
+      'On-premise deployment option',
+      'Vehicle & Body recognition',
+      'Custom model training',
+      'Liveness detection (iBeta L2)',
+      'DPDP & GDPR compliance support',
+      'Dedicated account manager',
+      'Custom SLA & uptime guarantee',
+    ],
+    cta: 'Contact Sales',
+    style: 'border-border hover:border-secondary',
+  },
 ]
 
 export default function PricingPage() {
@@ -75,13 +95,16 @@ export default function PricingPage() {
 
   const handlePlanClick = (planCode: string) => {
     if (isLoading) return
-    if (!isAuthenticated) {
-      // Redirect to login, then come back to pricing
-      router.push(`/login?redirect=/pricing`)
+    if (planCode === 'FREE') {
+      if (!isAuthenticated) {
+        router.push('/login?redirect=/dashboard')
+        return
+      }
+      router.push('/dashboard')
       return
     }
-    // User is logged in — go to dashboard (payment flow handled there later)
-    router.push('/dashboard')
+    // Paid plans redirect to contact
+    router.push('/contact')
   }
 
   return (
@@ -96,7 +119,7 @@ export default function PricingPage() {
 
       {/* Pricing Cards */}
       <section className="max-w-7xl mx-auto px-6 py-24">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map((plan) => (
             <div
               key={plan.code}

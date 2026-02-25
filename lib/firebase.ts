@@ -5,7 +5,7 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 // Firebase configuration (these are public client-side keys)
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBUpbJG0G-A8b6p7no4VRiYWsFx2RtTtd4",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "optiexacta-labs.firebaseapp.com",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "visionera.live",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "optiexacta-labs",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "optiexacta-labs.firebasestorage.app",
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "341449458075",

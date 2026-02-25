@@ -216,18 +216,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = async () => {
-    setIsLoading(true)
     try {
       await signOut(auth)
       await fetch('/api/auth/session', { method: 'DELETE' })
       setUser(null)
       setFirebaseUser(null)
       setIdToken(null)
+      // Redirect to login page after logout
+      window.location.href = '/login'
     } catch (error) {
       console.error('Logout error:', error)
       throw error
-    } finally {
-      setIsLoading(false)
     }
   }
 

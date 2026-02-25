@@ -204,19 +204,23 @@ function apiKeyAuth(prisma) {
       data: { lastUsedAt: new Date() },
     }).catch(() => {})
 
-    // Log the API call with apiKeyId after the response has been sent
+    // Log the API call after response is sent.
+    // The global auditMiddleware also fires for these requests, but it doesn't
+    // include apiKeyId. We attach it here so admin stats can filter by key.
+    // To avoid double-counting we tag the request so auditMiddleware skips it.
+    req._isApiKeyRequest = true
     res.on('finish', () => {
       const { auditLog } = require('../lib/audit')
       auditLog(prisma, {
         userId: apiKey.userId,
         tenantId: apiKey.tenantId,
         action: 'API_CALL',
-        endpoint: req.originalUrl || req.path,
-        method: req.method,
-        ipAddress: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || null,
-        userAgent: req.get('user-agent') || null,
-        responseStatus: res.statusCode,
-        detail: {
+        ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || null,
+        meta: {
+          method: req.method,
+          path: req.originalUrl || req.path,
+          status: res.statusCode,
+          userAgent: req.get('user-agent') || null,
           apiKeyId: apiKey.id,
           keyPrefix: apiKey.keyPrefix,
           keyName: apiKey.name,

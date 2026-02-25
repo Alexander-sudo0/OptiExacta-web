@@ -9,7 +9,7 @@ export default function NISTRanking() {
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="mb-16">
             <h1 className="text-5xl font-bold mb-4">
-              NIST Ranked <span className="text-blue-400">#1</span> Facial Recognition
+              NIST <span className="text-blue-400">Top-Ranked</span> Facial Recognition
             </h1>
             <p className="text-xl text-gray-400">
               VisionEra achieved the highest accuracy scores in the NIST Face Recognition Vendor Test (FRVT),

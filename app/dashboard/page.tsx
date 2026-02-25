@@ -11,17 +11,21 @@ import { backendRequest } from '@/lib/backend-api'
 type DashboardStats = {
   apiCallsToday: number
   monthRequests: number
+  monthVideos: number
   systemStatus: 'Online' | 'Degraded'
   dailyLimit: number
   monthlyLimit: number
+  monthlyVideoLimit: number
 }
 
 const EMPTY_STATS: DashboardStats = {
   apiCallsToday: 0,
   monthRequests: 0,
+  monthVideos: 0,
   systemStatus: 'Degraded',
   dailyLimit: 0,
   monthlyLimit: 0,
+  monthlyVideoLimit: 0,
 }
 
 export default function DashboardPage() {
@@ -53,9 +57,11 @@ export default function DashboardPage() {
         setStats({
           apiCallsToday: data.usage?.dayRequests || 0,
           monthRequests: data.usage?.monthRequests || 0,
+          monthVideos: data.usage?.monthVideos || 0,
           systemStatus: 'Online',
           dailyLimit: data.limits?.dailyRequestLimit || 0,
           monthlyLimit: data.limits?.monthlyRequestLimit || 0,
+          monthlyVideoLimit: data.limits?.monthlyVideoLimit || 0,
         })
       } catch (error: any) {
         if (!isMounted) return
@@ -136,6 +142,7 @@ export default function DashboardPage() {
   const quickStats = useMemo(() => {
     const dailyPercentage = stats.dailyLimit > 0 ? Math.round((stats.apiCallsToday / stats.dailyLimit) * 100) : 0
     const monthlyPercentage = stats.monthlyLimit > 0 ? Math.round((stats.monthRequests / stats.monthlyLimit) * 100) : 0
+    const videoPercentage = stats.monthlyVideoLimit > 0 ? Math.round((stats.monthVideos / stats.monthlyVideoLimit) * 100) : 0
     
     return [
       { 
@@ -149,6 +156,12 @@ export default function DashboardPage() {
         value: stats.monthRequests.toLocaleString(), 
         icon: '📊', 
         change: statsLoading ? 'Loading...' : stats.monthlyLimit > 0 ? `${monthlyPercentage}%` : '0 total'
+      },
+      { 
+        label: 'Videos Processed', 
+        value: stats.monthVideos.toLocaleString(), 
+        icon: '🎬', 
+        change: statsLoading ? 'Loading...' : stats.monthlyVideoLimit > 0 ? `${stats.monthVideos}/${stats.monthlyVideoLimit}` : 'This month'
       },
     ]
   }, [stats, statsLoading])
@@ -205,7 +218,7 @@ export default function DashboardPage() {
         )}
         
         <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 max-w-4xl"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 max-w-5xl"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}

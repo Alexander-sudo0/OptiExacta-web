@@ -56,7 +56,7 @@ async function auditLog(prisma, { action, userId, tenantId, targetUserId, ip, me
         endpoint,
         responseStatus,
         userAgent,
-        detail:       mergedDetail ? JSON.stringify(mergedDetail) : null,
+        detail:       mergedDetail || null,
       },
     })
   } catch (err) {
@@ -85,6 +85,8 @@ function auditMiddleware(prisma) {
       if (!req.saas?.user) return
       // Skip noise
       if (SKIP_PATHS.has(req.path)) return
+      // Skip API-key requests — apiKeyAuth middleware logs these with apiKeyId
+      if (req._isApiKeyRequest) return
       // Skip GET requests to reduce volume (optional — remove if you want full logging)
       // if (req.method === 'GET') return
 

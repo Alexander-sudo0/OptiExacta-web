@@ -128,10 +128,17 @@ function attachTenantContext(prisma) {
 
     // ----------------------------------------------------------------
     // 6. Track login activity (fire-and-forget)
+    //    Only count as a new login if there has been no activity in the
+    //    last 30 minutes — avoids inflating the count on every API call.
     // ----------------------------------------------------------------
+    const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000)
+    const isNewSession = !user.lastLoginAt || user.lastLoginAt < thirtyMinsAgo
     prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date(), loginCount: { increment: 1 } },
+      data: {
+        lastLoginAt: new Date(),
+        ...(isNewSession ? { loginCount: { increment: 1 } } : {}),
+      },
     }).catch(() => {})
 
     // ----------------------------------------------------------------

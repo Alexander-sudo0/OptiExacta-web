@@ -130,7 +130,7 @@ function isTokenExpired(expiresAt) {
  * @param {string} baseUrl - Public API base URL
  * @returns {string} Curl command
  */
-function generateCurlCommand(token, baseUrl = 'https://www.optiexacta.com') {
+function generateCurlCommand(token, baseUrl = 'https://visionera.live') {
   return `curl -X GET "${baseUrl}/api/result" \\
   -H "Authorization: Bearer ${token}"`;
 }

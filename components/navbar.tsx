@@ -21,7 +21,7 @@ export function Navbar() {
     <motion.nav 
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${
         scrolled 
-          ? 'bg-background/95 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-background/20' 
+          ? 'bg-white/[0.04] backdrop-blur-2xl border-b border-white/[0.08] shadow-[0_4px_30px_rgba(0,0,0,0.3)]' 
           : 'bg-transparent'
       }`}
       initial={{ y: -100 }}
@@ -38,23 +38,23 @@ export function Navbar() {
             <Image 
               src="/images/visionera-logo-white.png"
               alt="VisionEra"
-              width={44}
-              height={44}
-              className="w-11 h-11 object-contain"
+              width={52}
+              height={52}
+              className="w-13 h-13 object-contain"
             />
           </motion.div>
           <div className="flex flex-col">
-            <span className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">VisionEra</span>
-            <span className="text-[10px] text-muted-foreground font-medium tracking-wider">FACIAL RECOGNITION</span>
+            <span className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors">VisionEra</span>
+            <span className="text-[10px] text-muted-foreground font-medium tracking-wider">AI RECOGNITION</span>
           </div>
         </Link>
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-1">
           {[
-            { href: '/#features', label: 'Features' },
-            { href: '/#services', label: 'Services' },
+            { href: '/products', label: 'Products' },
             { href: '/pricing', label: 'Pricing' },
+            { href: '/api-docs', label: 'API Docs' },
             { href: '/about', label: 'About' }
           ].map((link) => (
             <Link 
@@ -116,9 +116,9 @@ export function Navbar() {
           >
             <div className="p-4 space-y-1">
               {[
-                { href: '/#features', label: 'Features' },
-                { href: '/#services', label: 'Services' },
+                { href: '/products', label: 'Products' },
                 { href: '/pricing', label: 'Pricing' },
+                { href: '/api-docs', label: 'API Docs' },
                 { href: '/about', label: 'About' }
               ].map((link, i) => (
                 <motion.div

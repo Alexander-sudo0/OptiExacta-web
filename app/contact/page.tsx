@@ -14,6 +14,9 @@ export default function ContactPage() {
     company: '',
     message: ''
   })
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -22,10 +25,24 @@ export default function ContactPage() {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle form submission
-    console.log('Form submitted:', formData)
+    setSubmitting(true)
+    setError('')
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      if (!res.ok) throw new Error('Failed to send message')
+      setSubmitted(true)
+      setFormData({ name: '', email: '', company: '', message: '' })
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -56,7 +73,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-foreground mb-1">Email</h3>
-                  <p className="text-muted-foreground">contact@visionera.com</p>
+                  <p className="text-muted-foreground">info@visionera.live</p>
                 </div>
               </div>
 
@@ -119,6 +136,16 @@ export default function ContactPage() {
             <h2 className="text-3xl font-bold text-foreground mb-8">Send us a Message</h2>
             
             <form onSubmit={handleSubmit} className="space-y-6">
+              {submitted && (
+                <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+                  Message sent successfully! We&apos;ll get back to you soon.
+                </div>
+              )}
+              {error && (
+                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-2">Full Name</label>
                 <input 
@@ -173,9 +200,10 @@ export default function ContactPage() {
 
               <button 
                 type="submit"
-                className="w-full py-3 bg-gradient-to-r from-primary to-secondary text-primary-foreground font-semibold rounded-full hover:opacity-90 transition-opacity"
+                disabled={submitting}
+                className="w-full py-3 bg-gradient-to-r from-primary to-secondary text-primary-foreground font-semibold rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                Send Message
+                {submitting ? 'Sending...' : 'Send Message'}
               </button>
             </form>
           </div>

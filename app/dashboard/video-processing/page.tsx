@@ -56,6 +56,31 @@ export default function VideoProcessingPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  const normalizeMediaUrl = (url?: string | null): string | null => {
+    if (!url) return null
+    if (url.startsWith('/uploads/')) return url
+
+    try {
+      const parsed = new URL(url)
+      if (parsed.pathname.startsWith('/uploads/')) {
+        return `${parsed.pathname}${parsed.search || ''}`
+      }
+    } catch {
+    }
+
+    return url
+      .replace(/^https?:\/\/127\.0\.0\.1(?::\d+)?/i, '')
+      .replace(/^https?:\/\/localhost(?::\d+)?/i, '')
+      .replace(/^https?:\/\/0\.0\.0\.0(?::\d+)?/i, '')
+      .replace(/^https?:\/\/72\.60\.223\.48(?::\d+)?/i, '')
+  }
+
+  const normalizeVideoFaceResult = (face: VideoFaceResult): VideoFaceResult => ({
+    ...face,
+    thumbnail: normalizeMediaUrl(face.thumbnail) || face.thumbnail,
+    fullframe: normalizeMediaUrl(face.fullframe) || face.fullframe,
+  })
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/login')
@@ -82,7 +107,7 @@ export default function VideoProcessingPage() {
 
     try {
       const eventsResponse = await listVideoEvents(videoId, 20)
-      setEvents(eventsResponse.results || [])
+      setEvents((eventsResponse.results || []).map(normalizeVideoFaceResult))
     } catch (err: any) {
       console.error('Failed to load events:', err)
     } finally {
@@ -352,6 +377,7 @@ export default function VideoProcessingPage() {
       const matchPct = matchScore * 100
       const isMatch = matchScore >= searchThreshold
       const isInconclusive = matchPct >= 60 && matchPct <= 65
+      const normalizedBestResult = bestResult ? normalizeVideoFaceResult(bestResult) : null
 
       setQueryPhotos((prev) =>
         prev.map((p) =>
@@ -361,7 +387,7 @@ export default function VideoProcessingPage() {
                 isSearching: false,
                 faceDetected: true,
                 faceCount: 1,
-                result: bestResult,
+                result: normalizedBestResult,
                 matchScore,
                 isMatch,
                 isInconclusive,
@@ -608,13 +634,13 @@ export default function VideoProcessingPage() {
                             key={event.id}
                             className="relative group cursor-pointer"
                             onClick={() => {
-                              setPreviewImage(event.fullframe || event.thumbnail || null)
+                              setPreviewImage(normalizeMediaUrl(event.fullframe) || normalizeMediaUrl(event.thumbnail) || null)
                               setPreviewTitle(`Face ${index + 1}`)
                             }}
                           >
-                            {event.thumbnail ? (
+                            {normalizeMediaUrl(event.thumbnail) ? (
                               <img
-                                src={event.thumbnail}
+                                src={normalizeMediaUrl(event.thumbnail) || ''}
                                 alt={`Face ${index + 1}`}
                                 className="w-full aspect-square rounded-lg object-cover border border-border/50 group-hover:border-primary/50 transition-colors"
                               />
@@ -786,11 +812,11 @@ export default function VideoProcessingPage() {
                                 <div className="flex items-center gap-2">
                                   {photo.result?.thumbnail && (
                                     <img
-                                      src={photo.result.thumbnail}
+                                      src={normalizeMediaUrl(photo.result.thumbnail) || ''}
                                       alt="Match"
                                       className="w-12 h-12 rounded object-cover cursor-pointer flex-shrink-0"
                                       onClick={() => {
-                                        setPreviewImage(photo.result!.fullframe || photo.result!.thumbnail || null)
+                                        setPreviewImage(normalizeMediaUrl(photo.result!.fullframe) || normalizeMediaUrl(photo.result!.thumbnail) || null)
                                         setPreviewTitle('Match Result')
                                       }}
                                     />

@@ -9,10 +9,11 @@ interface HeroSectionProps {
   title: string
   subtitle: string
   backgroundImage?: string
+  backgroundVideo?: string
   badge?: string
 }
 
-export function HeroSection({ title, subtitle, backgroundImage, badge }: HeroSectionProps) {
+export function HeroSection({ title, subtitle, backgroundImage, backgroundVideo, badge }: HeroSectionProps) {
   // Generate particles only on client to avoid hydration mismatch
   const [particles, setParticles] = useState<Array<{ left: string; top: string; duration: number; delay: number }>>([])
 
@@ -30,21 +31,21 @@ export function HeroSection({ title, subtitle, backgroundImage, badge }: HeroSec
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-card/50" />
+      {/* Background gradient - warm peach/orange tint */}
+      <div className="absolute inset-0 bg-gradient-to-b from-orange-500/[0.06] via-amber-500/[0.03] to-background" />
       
-      {/* Animated gradient orbs */}
+      {/* Animated gradient orbs - warm tones */}
       <motion.div 
-        className="absolute top-20 right-10 w-[500px] h-[500px] bg-gradient-cyan-orange rounded-full blur-3xl opacity-15"
+        className="absolute top-20 right-10 w-[500px] h-[500px] bg-gradient-to-br from-orange-400/20 to-amber-300/10 rounded-full blur-3xl"
         animate={{ 
           y: [0, -30, 0],
           scale: [1, 1.1, 1],
-          opacity: [0.15, 0.2, 0.15]
+          opacity: [0.2, 0.3, 0.2]
         }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div 
-        className="absolute bottom-20 left-10 w-[500px] h-[500px] bg-gradient-cyan-pink rounded-full blur-3xl opacity-15"
+        className="absolute bottom-20 left-10 w-[500px] h-[500px] bg-gradient-to-tr from-rose-400/15 to-orange-300/10 rounded-full blur-3xl"
         animate={{ 
           y: [0, 30, 0],
           scale: [1.1, 1, 1.1],
@@ -52,12 +53,59 @@ export function HeroSection({ title, subtitle, backgroundImage, badge }: HeroSec
         }}
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
       />
+      <motion.div 
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-orange-500/10 to-transparent rounded-full blur-3xl"
+        animate={{ 
+          scale: [1, 1.2, 1],
+          opacity: [0.1, 0.15, 0.1]
+        }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+      />
       
-      {/* Grid pattern overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,217,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,217,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
+      {/* Grid pattern overlay - warm tone */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(251,146,60,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(251,146,60,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
 
-      {/* Background image if provided */}
-      {backgroundImage && (
+      {/* Abstract tech pattern - circuit nodes */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.04]">
+        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="circuit" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
+              <circle cx="100" cy="100" r="3" fill="currentColor" />
+              <circle cx="0" cy="0" r="2" fill="currentColor" />
+              <circle cx="200" cy="0" r="2" fill="currentColor" />
+              <circle cx="0" cy="200" r="2" fill="currentColor" />
+              <circle cx="200" cy="200" r="2" fill="currentColor" />
+              <line x1="100" y1="100" x2="200" y2="0" stroke="currentColor" strokeWidth="0.5" />
+              <line x1="100" y1="100" x2="0" y2="0" stroke="currentColor" strokeWidth="0.5" />
+              <line x1="100" y1="100" x2="200" y2="200" stroke="currentColor" strokeWidth="0.5" />
+              <line x1="100" y1="100" x2="0" y2="200" stroke="currentColor" strokeWidth="0.5" />
+              <line x1="100" y1="100" x2="100" y2="0" stroke="currentColor" strokeWidth="0.5" />
+              <line x1="100" y1="100" x2="100" y2="200" stroke="currentColor" strokeWidth="0.5" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#circuit)" className="text-orange-300" />
+        </svg>
+      </div>
+
+      {/* Background video if provided */}
+      {backgroundVideo && (
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          <video
+            src={backgroundVideo}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover opacity-20"
+          />
+          {/* Layered overlays for readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/60 via-[#0a0a0a]/30 to-[#0a0a0a]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/40 via-transparent to-[#0a0a0a]/40" />
+        </div>
+      )}
+
+      {/* Background image if provided (fallback) */}
+      {backgroundImage && !backgroundVideo && (
         <div className="absolute inset-0 z-0">
           <Image
             src={backgroundImage || "/placeholder.svg"}
@@ -66,7 +114,7 @@ export function HeroSection({ title, subtitle, backgroundImage, badge }: HeroSec
             className="object-cover opacity-20"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/50 to-background" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/40 to-background" />
         </div>
       )}
 
@@ -75,7 +123,7 @@ export function HeroSection({ title, subtitle, backgroundImage, badge }: HeroSec
         {particles.map((particle, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-primary/40 rounded-full"
+            className="absolute w-1 h-1 bg-orange-400/40 rounded-full"
             style={{
               left: particle.left,
               top: particle.top,
@@ -94,16 +142,16 @@ export function HeroSection({ title, subtitle, backgroundImage, badge }: HeroSec
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
+      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-28 text-center">
         {badge && (
           <motion.div 
-            className="mb-6 inline-block"
+            className="mb-8 inline-block"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <span className="px-5 py-2.5 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 border border-primary/50 text-secondary text-sm font-medium backdrop-blur-sm inline-flex items-center gap-2">
-              <span className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
+            <span className="px-5 py-2.5 rounded-full bg-gradient-to-r from-orange-500/15 to-amber-500/15 border border-orange-500/40 text-orange-300 text-sm font-medium backdrop-blur-sm inline-flex items-center gap-2">
+              <span className="w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
               {badge}
             </span>
           </motion.div>
@@ -171,7 +219,7 @@ export function HeroSection({ title, subtitle, backgroundImage, badge }: HeroSec
         >
           <p className="text-sm text-muted-foreground mb-6">Trusted by leading enterprises worldwide</p>
           <div className="flex flex-wrap items-center justify-center gap-8 opacity-60">
-            {['NIST #1 Ranked', 'ISO 27001', 'SOC 2 Type II', 'GDPR Compliant'].map((badge, i) => (
+            {['NIST Top-Ranked', 'ISO 27001', 'GDPR Compliant', 'DPDP Act'].map((badge, i) => (
               <motion.div 
                 key={badge}
                 className="px-4 py-2 rounded-lg bg-card/30 border border-border/50 text-xs font-medium text-muted-foreground"

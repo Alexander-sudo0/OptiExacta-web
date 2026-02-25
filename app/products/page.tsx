@@ -41,21 +41,29 @@ export default function ProductsPage() {
       gradient: 'from-green-500/20 to-emerald-500/20'
     },
     {
-      title: 'Face Studio',
-      description: 'Your central hub for managing enrolled faces. Upload, organize, and maintain your face gallery. Create collections for different projects and use cases.',
-      features: ['Face enrollment', 'Gallery management', 'Collection organizing', 'Metadata tagging'],
-      icon: '🗂️',
-      href: '/dashboard/studio',
+      title: 'Vehicle Recognition',
+      description: 'Detect and identify vehicles from images and video footage. Automatic license plate recognition (ALPR), make/model classification, and color detection for traffic and security applications.',
+      features: ['License plate reading', 'Make & model detection', 'Color classification', 'Real-time processing'],
+      icon: '🚗',
+      href: '/contact',
       gradient: 'from-indigo-500/20 to-violet-500/20'
     },
     {
-      title: 'Watchlist Management',
-      description: 'Create and manage watchlists for persons of interest. Get alerts when a match is detected during any face search performed on the platform.',
-      features: ['Watchlist creation', 'Alert notifications', 'Person tracking', 'Priority flagging'],
-      icon: '🔔',
-      href: '/dashboard/watchlist',
+      title: 'Body Recognition',
+      description: 'Detect and track people by body features when faces are not visible or obscured. Gait analysis, person re-identification, and clothing-based search across cameras.',
+      features: ['Person re-identification', 'Gait analysis', 'Clothing-based search', 'Multi-camera tracking'],
+      icon: '🚶',
+      href: '/contact',
       gradient: 'from-amber-500/20 to-yellow-500/20'
-    }
+    },
+    {
+      title: 'Liveness Detection',
+      description: 'iBeta Level 2 certified liveness detection to prevent spoofing attacks. Detect printed photos, screen replays, and 3D masks during identity verification.',
+      features: ['iBeta Level 2 certified', 'Anti-spoofing checks', '3D mask detection', 'Passive liveness'],
+      icon: '🛡️',
+      href: '/contact',
+      gradient: 'from-teal-500/20 to-cyan-500/20'
+    },
   ]
 
   return (
@@ -125,12 +133,12 @@ export default function ProductsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { title: 'Law Enforcement', icon: '🏛️', description: 'Investigate cases with video analysis and face matching' },
-              { title: 'Airports & Travel', icon: '✈️', description: 'Passenger verification and watchlist screening' },
-              { title: 'Banking & Finance', icon: '🏦', description: 'KYC compliance and fraud prevention with 1:1 verification' },
-              { title: 'Corporate Security', icon: '🏢', description: 'Employee verification and visitor management' },
-              { title: 'Investigations', icon: '🔎', description: 'Cross-reference faces with N:N batch matching' },
-              { title: 'Access Control', icon: '🔐', description: 'Identity verification for restricted area access' }
+              { title: 'Law Enforcement', icon: '🏛️', description: 'Investigate cases with video analysis, face matching, and vehicle tracking' },
+              { title: 'Smart Cities', icon: '🏙️', description: 'Vehicle recognition, traffic monitoring, and public safety with real-time detection' },
+              { title: 'Banking & Finance', icon: '🏦', description: 'KYC compliance, liveness-verified onboarding, and fraud prevention' },
+              { title: 'Border Control', icon: '🛂', description: 'Passenger identification and real-time screening at airports and checkpoints' },
+              { title: 'Retail & Enterprise', icon: '🏬', description: 'Customer verification, VIP identification, and attendance management' },
+              { title: 'Investigations', icon: '🔎', description: 'Cross-reference faces and vehicles across datasets with batch matching' }
             ].map((useCase) => (
               <div key={useCase.title} className="p-6 rounded-2xl border border-border bg-card/50 hover:bg-card/80 transition-all hover:border-secondary/30">
                 <div className="text-4xl mb-4">{useCase.icon}</div>

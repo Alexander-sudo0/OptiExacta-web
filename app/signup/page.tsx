@@ -111,7 +111,7 @@ export default function SignupPage() {
   const features = [
     { icon: '🔒', title: 'Enterprise Security', desc: 'Bank-grade encryption' },
     { icon: '⚡', title: 'Real-time Processing', desc: 'Sub-second results' },
-    { icon: '🎯', title: '99.9% Accuracy', desc: 'NIST #1 ranked' },
+    { icon: '🎯', title: '99.9% Accuracy', desc: 'NIST top-ranked' },
     { icon: '🌐', title: 'Global Scale', desc: 'Multi-region support' }
   ]
 
@@ -158,7 +158,7 @@ export default function SignupPage() {
               <span className="text-white/90">Free Trial Today</span>
             </h1>
             <p className="text-lg text-white/70 mb-10 max-w-md">
-              Join thousands of enterprises using VisionEra's NIST #1 ranked facial recognition technology.
+              Join thousands of enterprises using VisionEra's NIST top-ranked facial recognition technology.
             </p>
 
             {/* Feature Grid */}

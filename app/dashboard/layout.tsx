@@ -40,6 +40,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const { logout, idToken, user, isLoading, isAuthenticated } = useAuth()
 
+  // Close sidebar on mobile by default
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false)
+    }
+  }, [])
+
   // Redirect if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -133,6 +140,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </svg>
       )
     },
+    { 
+      label: 'API Docs', 
+      href: '/api-docs',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    },
   ]
 
   const isAdmin = userRole?.systemRole === 'SUPER_ADMIN'
@@ -165,6 +181,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
@@ -173,7 +197,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             animate={{ x: 0 }}
             exit={{ x: -280 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="w-72 border-r border-border bg-card/50 backdrop-blur-xl flex flex-col"
+            className="w-72 border-r border-border bg-card/50 backdrop-blur-xl flex flex-col fixed md:relative z-40 h-full"
           >
             {/* Logo */}
             <div className="p-6 border-b border-border">
@@ -190,7 +214,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
                 <div>
                   <span className="text-lg font-bold text-foreground block">VisionEra</span>
-                  <span className="text-[10px] text-muted-foreground font-medium tracking-wider">FACIAL RECOGNITION</span>
+                  <span className="text-[10px] text-muted-foreground font-medium tracking-wider">AI RECOGNITION</span>
                 </div>
               </Link>
             </div>

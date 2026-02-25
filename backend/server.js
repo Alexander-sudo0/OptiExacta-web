@@ -75,8 +75,21 @@ const handleMulterError = (err, req, res, next) => {
   next();
 };
 
+const ALLOWED_ORIGINS = [
+  process.env.FRONTEND_URL,
+  'https://visionera.live',
+  'https://www.visionera.live',
+  'http://localhost:3003',
+  'http://localhost:3002',
+].filter(Boolean)
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3002',
+  origin: (origin, cb) => {
+    // Allow requests with no origin (curl, Postman, server-to-server)
+    if (!origin) return cb(null, true)
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true)
+    return cb(new Error(`CORS: origin ${origin} not allowed`))
+  },
   credentials: true,
 }))
 app.use(express.json({ limit: '1mb' }))
@@ -85,6 +98,60 @@ const VIDEO_API_BASE = process.env.VIDEO_API_BASE || process.env.FRS_BASE_URL ||
 const VIDEO_API_TOKEN = process.env.VIDEO_API_TOKEN || process.env.FRS_API_TOKEN || ''
 const EVENTS_API_BASE = process.env.EVENTS_API_BASE || process.env.FRS_BASE_URL || 'http://72.60.223.48'
 const EVENTS_API_TOKEN = process.env.EVENTS_API_TOKEN || process.env.FRS_API_TOKEN || ''
+
+// Rewrite internal FRS thumbnail/fullframe URLs to relative paths
+// The FRS returns URLs like http://127.0.0.1:8880/uploads/... which browsers can't reach
+// Caddy proxies /uploads/* to FRS, so we just need relative paths
+function rewriteFrsUrls(data) {
+  if (!data) return data
+  const INTERNAL_PATTERNS = [
+    'http://127.0.0.1:8880',
+    'https://127.0.0.1:8880',
+    'http://localhost:8880',
+    'https://localhost:8880',
+    'http://0.0.0.0:8880',
+    'https://0.0.0.0:8880',
+  ]
+  
+  const rewriteUrl = (url) => {
+    if (!url || typeof url !== 'string') return url
+
+    try {
+      const parsed = new URL(url)
+      if (parsed.pathname.startsWith('/uploads/')) {
+        return `${parsed.pathname}${parsed.search || ''}`
+      }
+    } catch {
+    }
+
+    for (const pattern of INTERNAL_PATTERNS) {
+      if (url.startsWith(pattern)) {
+        return url.replace(pattern, '')  // Strip host, keep /uploads/...
+      }
+    }
+    return url
+  }
+
+  const rewriteObj = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj
+    if (Array.isArray(obj)) return obj.map(rewriteObj)
+    const result = { ...obj }
+    if (result.thumbnail) result.thumbnail = rewriteUrl(result.thumbnail)
+    if (result.fullframe) result.fullframe = rewriteUrl(result.fullframe)
+    if (result.photo) result.photo = rewriteUrl(result.photo)
+    return result
+  }
+
+  // Handle paginated response { results: [...] }
+  if (data.results && Array.isArray(data.results)) {
+    return { ...data, results: data.results.map(rewriteObj) }
+  }
+  // Handle single object
+  if (data.thumbnail || data.fullframe) {
+    return rewriteObj(data)
+  }
+  return data
+}
 
 const videoApi = axios.create({
   baseURL: VIDEO_API_BASE,
@@ -429,7 +496,7 @@ app.get(
         }
       )
 
-      res.json(response.data)
+      res.json(rewriteFrsUrls(response.data))
     } catch (error) {
       console.error('Video faces list error:', error.message)
       res.status(500).json({
@@ -465,7 +532,7 @@ app.get(
         }
       )
 
-      res.json(response.data)
+      res.json(rewriteFrsUrls(response.data))
     } catch (error) {
       console.error('Video clusters list error:', error.message)
       res.status(500).json({
@@ -505,7 +572,7 @@ app.get(
         }
       )
 
-      res.json(response.data)
+      res.json(rewriteFrsUrls(response.data))
     } catch (error) {
       console.error('Video events list error:', error.message)
       res.status(500).json({
@@ -571,7 +638,7 @@ app.post(
       )
 
       if (Array.isArray(response.data?.results) && response.data.results.length > 0) {
-        return res.json(response.data)
+        return res.json(rewriteFrsUrls(response.data))
       }
 
       const fallback = await eventsApi.get(
@@ -588,7 +655,7 @@ app.post(
         }
       )
 
-      res.json(fallback.data)
+      res.json(rewriteFrsUrls(fallback.data))
     } catch (error) {
       console.error('Video faces search error:', error.message)
       res.status(500).json({
@@ -1265,7 +1332,7 @@ app.post(
       });
 
       // Generate curl command. Prefer explicit PUBLIC_API_URL, otherwise derive from request host.
-      const baseUrl = process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}` || 'https://www.optiexacta.com';
+      const baseUrl = process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}` || 'https://visionera.live';
       const curlCommand = shareTokens.generateCurlCommand(token, baseUrl);
 
       res.json({
